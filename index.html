@@ -1,0 +1,1814 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="A turn-based grimdark sci-fi skirmish game in your browser. English, 繁體中文, 简体中文.">
+<title>Iron Requiem</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pirata+One&family=Barlow+Condensed:wght@400;500;600;700&family=Share+Tech+Mono&family=Noto+Serif+TC:wght@700;900&family=Noto+Sans+TC:wght@400;500;700&family=Noto+Serif+SC:wght@700;900&family=Noto+Sans+SC:wght@400;500;700&display=swap">
+<style>
+/* Layout: a war table. The battlefield dominates the left; a cogitator column of orders, weapon odds, datasheet, dice and log runs down the right and stacks below on phones. Single deliberate dark look. */
+:root{
+  --void:#0f0d0b; --plate:#1a1714; --plate-2:#231f1a; --line:#3b342b;
+  --bone:#e4d8bc; --bone-dim:#9f937b; --brass:#c4933f; --brass-hi:#e9b85e; --on-brass:#1b1408;
+  --templar:#dccfb0; --templar-rim:#7d6c4b; --hive:#a83c68; --hive-rim:#4f1b33; --hive-text:#df8fb2;
+  --ok:#86ad6c; --bad:#d0493d; --warn:#d9a441;
+  --ground:#2a251f; --ground-2:#352e26; --ground-dark:#1c1814; --scorch:rgba(8,6,4,.5);
+  --grid:rgba(228,216,188,.07); --wall:#4a4239; --wall-dark:#1d1915; --wall-edge:#8a7350;
+  --rubble:#62584b; --rubble-dark:#3a332b; --shadow:rgba(0,0,0,.45);
+  --f-display:'Pirata One', 'UnifrakturCook', Georgia, serif;
+  --f-ui:'Barlow Condensed', 'Arial Narrow', 'Helvetica Neue', system-ui, sans-serif;
+  --f-data:'Share Tech Mono', ui-monospace, Menlo, Consolas, monospace;
+  --track:.12em;
+  color-scheme:dark;
+}
+html[lang="zh-Hant"]{
+  --f-display:'Noto Serif TC', 'Songti TC', 'PMingLiU', serif;
+  --f-ui:'Noto Sans TC', 'PingFang TC', 'Microsoft JhengHei', sans-serif;
+  --f-data:'Share Tech Mono', 'Noto Sans TC', 'PingFang TC', monospace;
+  --track:.04em;
+}
+html[lang="zh-Hans"]{
+  --f-display:'Noto Serif SC', 'Songti SC', 'SimSun', serif;
+  --f-ui:'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  --f-data:'Share Tech Mono', 'Noto Sans SC', 'PingFang SC', monospace;
+  --track:.04em;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{background:var(--void)}
+body{
+  margin:0; color:var(--bone); font-family:var(--f-ui); font-size:16px; line-height:1.45;
+  padding-left:max(16px, env(safe-area-inset-left, 0px));
+  padding-right:max(16px, env(safe-area-inset-right, 0px));
+  padding-block:20px 48px;
+  background:
+    radial-gradient(1200px 500px at 20% -10%, rgba(196,147,63,.08), transparent 70%),
+    radial-gradient(900px 600px at 110% 20%, rgba(168,60,104,.07), transparent 70%),
+    var(--void);
+}
+.wrap{max-width:1340px; margin:0 auto; display:flex; flex-direction:column; gap:14px}
+
+/* header */
+.bar{display:flex; flex-wrap:wrap; align-items:flex-end; justify-content:space-between; gap:14px 28px; border-bottom:1px solid var(--line); padding-bottom:14px}
+.brand{display:flex; flex-direction:column; gap:4px; min-width:0}
+h1{font-family:var(--f-display); font-weight:900; font-size:clamp(2.4rem, 6vw, 3.8rem); line-height:.95; margin:0; color:var(--bone); letter-spacing:.01em; text-wrap:balance}
+html[lang="en"] h1{font-weight:400; line-height:.85}
+h1 span{color:var(--brass)}
+.sub{font-family:var(--f-data); color:var(--bone-dim); font-size:.74rem; letter-spacing:var(--track); text-transform:uppercase; margin:0}
+.scores{display:flex; align-items:stretch; gap:10px; flex-wrap:wrap}
+.side{display:flex; flex-direction:column; justify-content:space-between; gap:2px; padding:6px 12px; border:1px solid var(--line); background:var(--plate); min-width:118px}
+.side .who{font-size:.72rem; letter-spacing:var(--track); text-transform:uppercase; font-weight:600}
+.side.P .who{color:var(--templar)} .side.E .who{color:var(--hive-text)}
+.side .vp{font-family:var(--f-data); font-size:1.7rem; line-height:1; font-variant-numeric:tabular-nums}
+.side .vp small{font-size:.7rem; color:var(--bone-dim); margin-left:4px; letter-spacing:.1em}
+.side .cp{font-family:var(--f-data); font-size:.75rem; color:var(--bone-dim)}
+.side.active{border-color:var(--brass); box-shadow:inset 0 -2px 0 var(--brass)}
+.objs{display:flex; flex-direction:column; justify-content:center; gap:4px; padding:6px 10px; border:1px solid var(--line); background:var(--plate)}
+.objs .lbl{font-size:.68rem; letter-spacing:var(--track); text-transform:uppercase; color:var(--bone-dim)}
+.pips{display:flex; gap:4px}
+.pip{width:24px; height:24px; display:grid; place-items:center; font-family:'Pirata One', Georgia, serif; font-size:.9rem; border:1px solid var(--line); color:var(--bone-dim)}
+.pip.P{background:var(--templar); color:var(--on-brass); border-color:var(--templar)}
+.pip.E{background:var(--hive); color:var(--bone); border-color:var(--hive)}
+
+/* phase track */
+.track{display:flex; flex-wrap:wrap; align-items:center; gap:8px 18px}
+.round{font-family:var(--f-data); font-size:.8rem; letter-spacing:.1em; text-transform:uppercase; color:var(--bone-dim)}
+.round b{color:var(--bone); font-weight:400}
+.phases{display:flex; flex-wrap:wrap; list-style:none; margin:0; padding:0; border:1px solid var(--line)}
+.phases li{padding:5px 12px; font-size:.82rem; font-weight:600; letter-spacing:var(--track); text-transform:uppercase; color:var(--bone-dim); border-right:1px solid var(--line)}
+.phases li:last-child{border-right:0}
+.phases li.done{color:var(--templar-rim)}
+.phases li.on{background:var(--brass); color:var(--on-brass)}
+.turnof{font-size:.82rem; letter-spacing:var(--track); text-transform:uppercase; font-weight:700}
+.turnof.P{color:var(--templar)} .turnof.E{color:var(--hive-text)}
+.tools{display:flex; flex-wrap:wrap; gap:8px; margin-left:auto; align-items:center}
+.langs{display:flex; border:1px solid var(--line)}
+.langs button{border:0; border-right:1px solid var(--line); color:var(--bone-dim); padding:7px 10px; letter-spacing:.04em; text-transform:none; font-weight:500}
+.langs button:last-child{border-right:0}
+.langs button[aria-pressed="true"]{background:var(--bone); color:var(--on-brass)}
+.langs button:lang(zh-Hant){font-family:'Noto Sans TC', 'PingFang TC', sans-serif}
+.langs button:lang(zh-Hans){font-family:'Noto Sans SC', 'PingFang SC', sans-serif}
+
+/* main */
+.main{display:grid; grid-template-columns:minmax(0,1fr) 370px; gap:16px; align-items:start}
+@media (max-width:980px){.main{grid-template-columns:minmax(0,1fr)}}
+.board-col{display:flex; flex-direction:column; gap:10px; min-width:0}
+.board-wrap{position:relative; border:1px solid var(--line); background:var(--ground-dark); box-shadow:0 18px 40px -20px var(--shadow)}
+canvas{display:block; width:100%; height:auto; cursor:pointer; touch-action:manipulation}
+.legend{display:flex; flex-wrap:wrap; gap:6px 16px; font-size:.78rem; color:var(--bone-dim); letter-spacing:.06em; text-transform:uppercase}
+.legend span{display:inline-flex; align-items:center; gap:6px}
+.sw{width:12px; height:12px; display:inline-block; border:1px solid var(--line)}
+.sw.wall{background:var(--wall); border-color:var(--wall-edge)}
+.sw.rub{background:var(--rubble)}
+.sw.obj{border:1px dashed var(--brass)}
+.sw.mv{background:rgba(196,147,63,.35); border-color:var(--brass)}
+
+.verdict{position:absolute; inset:0; display:grid; place-items:center; background:rgba(10,8,6,.78); text-align:center; padding:16px}
+.verdict .vbox{display:flex; flex-direction:column; align-items:center; gap:10px; max-width:440px}
+.verdict h3{font-family:var(--f-display); font-weight:900; font-size:clamp(2.6rem,8vw,4.6rem); line-height:.95; margin:0; color:var(--brass-hi)}
+html[lang="en"] .verdict h3{font-weight:400}
+.verdict p{margin:0; color:var(--bone)}
+
+/* roster */
+.roster{display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:10px}
+@media (max-width:560px){.roster{grid-template-columns:minmax(0,1fr)}}
+.rcol{display:flex; flex-direction:column; gap:4px; min-width:0}
+.rcol h4{margin:0 0 2px; font-size:.72rem; letter-spacing:var(--track); text-transform:uppercase; font-weight:600}
+.rcol.P h4{color:var(--templar)} .rcol.E h4{color:var(--hive-text)}
+.ru{display:grid; grid-template-columns:34px minmax(0,1fr) auto; align-items:center; gap:10px; padding:3px 8px 3px 3px; background:var(--plate); border:1px solid var(--line); color:var(--bone); font:inherit; text-align:left; cursor:pointer; text-transform:none; letter-spacing:0; font-weight:400}
+.ru:hover{border-color:var(--bone-dim)}
+.ru.sel{border-color:var(--brass)}
+.ru.dead{opacity:.38; cursor:default}
+.ru.dead img{filter:grayscale(1)}
+.ru img{width:34px; height:34px; display:block}
+.rcol.P .ru img{outline:1px solid var(--templar-rim)}
+.rcol.E .ru img{outline:1px solid var(--hive)}
+.ru .nm{white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-size:.95rem}
+.ru .st{font-family:var(--f-data); font-size:.72rem; color:var(--bone-dim); white-space:nowrap}
+.ru .st .sh{color:var(--warn)}
+
+/* sidebar */
+aside{display:flex; flex-direction:column; gap:12px; min-width:0}
+.panel{background:var(--plate); border:1px solid var(--line); padding:12px 14px; min-width:0}
+.panel h2{margin:0 0 8px; font-family:var(--f-ui); font-weight:600; font-size:.74rem; letter-spacing:var(--track); text-transform:uppercase; color:var(--brass)}
+html[lang="en"] .panel h2{letter-spacing:.18em}
+.orders{border-color:var(--brass); background:linear-gradient(180deg, var(--plate-2), var(--plate))}
+.orders > p{margin:0 0 10px; font-size:1.02rem; line-height:1.4; text-wrap:pretty}
+.acts{display:flex; flex-wrap:wrap; gap:8px}
+button{font-family:var(--f-ui); font-weight:600; text-transform:uppercase; letter-spacing:.1em; font-size:.84rem; border:1px solid var(--brass); background:transparent; color:var(--brass-hi); padding:8px 12px; cursor:pointer; line-height:1.1}
+html:not([lang="en"]) button{letter-spacing:.04em}
+button:hover:not(:disabled){background:rgba(196,147,63,.12)}
+button.primary{background:var(--brass); color:var(--on-brass)}
+button.primary:hover:not(:disabled){background:var(--brass-hi)}
+button.armed{background:var(--bone); color:var(--on-brass); border-color:var(--bone)}
+button:disabled{opacity:.4; cursor:not-allowed}
+button:focus-visible, .ru:focus-visible, canvas:focus-visible{outline:2px solid var(--bone); outline-offset:2px}
+
+/* weapon odds */
+.vs{display:grid; grid-template-columns:44px minmax(0,1fr) 44px; align-items:center; gap:8px; margin:0 0 10px; padding:6px; background:var(--ground-dark); border:1px solid var(--line)}
+.vs img{width:44px; height:44px; display:block}
+.vs .mid{text-align:center; min-width:0}
+.vs .mid b{display:block; font-family:var(--f-display); font-weight:700; font-size:1.05rem; line-height:1.15; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+html[lang="en"] .vs .mid b{font-weight:400}
+.vs .mid span{font-family:var(--f-data); font-size:.68rem; color:var(--bone-dim); letter-spacing:.04em}
+.vs .mods{display:block; color:var(--brass-hi)}
+.wpick{display:flex; flex-direction:column; gap:8px; margin-bottom:10px}
+.wcard{border:1px solid var(--line); background:var(--plate); padding:9px 10px; display:flex; flex-direction:column; gap:7px}
+.wcard.best{border-color:var(--brass)}
+.wcard.off{opacity:.55}
+.wc-top{display:flex; justify-content:space-between; align-items:baseline; gap:8px; flex-wrap:wrap}
+.wc-name{font-size:1.05rem; font-weight:600}
+.wc-tag{font-size:.64rem; letter-spacing:var(--track); text-transform:uppercase; padding:1px 5px; background:var(--brass); color:var(--on-brass); font-weight:700}
+.wc-prof{font-family:var(--f-data); font-size:.7rem; color:var(--bone-dim); width:100%}
+.wc-prof em{font-style:normal; color:var(--brass)}
+.chain{display:grid; grid-template-columns:repeat(4, minmax(0,1fr)); border:1px solid var(--line)}
+.chain span{display:flex; flex-direction:column; align-items:center; padding:3px 0; border-right:1px solid var(--line); min-width:0}
+.chain span:last-child{border-right:0}
+.chain em{font-style:normal; font-size:.6rem; letter-spacing:var(--track); text-transform:uppercase; color:var(--bone-dim); white-space:nowrap}
+.chain b{font-family:var(--f-data); font-weight:400; font-size:.95rem; font-variant-numeric:tabular-nums}
+.pbar{display:grid; grid-template-columns:auto minmax(0,1fr) auto; align-items:center; gap:8px; font-family:var(--f-data); font-size:.68rem; color:var(--bone-dim)}
+.pbar .track2{height:6px; background:var(--ground-dark); border:1px solid var(--line); position:relative}
+.pbar .track2 i{position:absolute; inset:0 auto 0 0; background:var(--brass)}
+.pbar b{color:var(--bone); font-weight:400}
+.outc{display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:6px}
+.outc span{display:flex; flex-direction:column; padding:4px 6px; background:var(--ground-dark); min-width:0}
+.outc em{font-style:normal; font-size:.6rem; letter-spacing:var(--track); text-transform:uppercase; color:var(--bone-dim)}
+.outc b{font-family:var(--f-data); font-weight:400; font-size:1.05rem; font-variant-numeric:tabular-nums}
+.outc .kill b{color:var(--brass-hi)}
+.wc-why{font-family:var(--f-data); font-size:.72rem; color:var(--warn); margin:0}
+.wcard button{align-self:flex-start}
+
+/* datasheet */
+.ds-top{display:grid; grid-template-columns:92px minmax(0,1fr); gap:12px; align-items:center; margin-bottom:8px}
+.ds-top img{width:92px; height:92px; display:block; border:1px solid var(--line)}
+.ds-top.P img{border-color:var(--templar-rim)} .ds-top.E img{border-color:var(--hive)}
+.ds-name{font-family:var(--f-display); font-weight:700; font-size:1.6rem; line-height:1.05; display:block}
+html[lang="en"] .ds-name{font-weight:400}
+.ds-side{font-size:.72rem; letter-spacing:var(--track); text-transform:uppercase; display:block; margin-top:4px}
+.ds-side.P{color:var(--templar)} .ds-side.E{color:var(--hive-text)}
+.kw{font-size:.72rem; letter-spacing:var(--track); text-transform:uppercase; color:var(--bone-dim); margin-top:4px}
+.statline{display:grid; grid-template-columns:repeat(6, minmax(0,1fr)); border:1px solid var(--line); margin-bottom:8px}
+.statline div{display:flex; flex-direction:column; align-items:center; padding:4px 0; border-right:1px solid var(--line)}
+.statline div:last-child{border-right:0}
+.statline span{font-size:.66rem; letter-spacing:.14em; color:var(--bone-dim)}
+.statline b{font-family:var(--f-data); font-weight:400; font-size:1.05rem; font-variant-numeric:tabular-nums}
+.strength{font-family:var(--f-data); font-size:.78rem; color:var(--bone-dim); margin-bottom:8px}
+.strength b{color:var(--bone); font-weight:400}
+.wtab{overflow-x:auto}
+table{border-collapse:collapse; width:100%; font-size:.8rem}
+th{font-weight:600; font-size:.66rem; letter-spacing:var(--track); text-transform:uppercase; color:var(--bone-dim); text-align:center; padding:3px 4px; border-bottom:1px solid var(--line)}
+th:first-child, td:first-child{text-align:left}
+td{font-family:var(--f-data); text-align:center; padding:4px; border-bottom:1px solid var(--plate-2); font-variant-numeric:tabular-nums; white-space:nowrap}
+td:first-child{font-family:var(--f-ui); white-space:normal; font-size:.88rem}
+td small{display:block; font-family:var(--f-data); font-size:.66rem; color:var(--brass); letter-spacing:.04em}
+tr.sec td{font-family:var(--f-ui); font-size:.62rem; letter-spacing:var(--track); text-transform:uppercase; color:var(--bone-dim); padding-top:6px; border-bottom:1px solid var(--line)}
+.flags{display:flex; flex-wrap:wrap; gap:4px; margin-top:8px}
+.flag{font-size:.68rem; letter-spacing:var(--track); text-transform:uppercase; padding:2px 6px; border:1px solid var(--line); color:var(--bone-dim)}
+.flag.warn{border-color:var(--warn); color:var(--warn)}
+.flag.good{border-color:var(--ok); color:var(--ok)}
+.empty{color:var(--bone-dim); font-size:.92rem; margin:0}
+
+.tray-title{font-size:.95rem; margin:0 0 6px}
+.tray-title.P{color:var(--templar)} .tray-title.E{color:var(--hive-text)}
+.wgrp{display:flex; flex-direction:column; gap:5px; margin-bottom:8px}
+.wgrp .wn{font-size:.72rem; letter-spacing:var(--track); text-transform:uppercase; color:var(--bone-dim)}
+.drow{display:grid; grid-template-columns:76px minmax(0,1fr); gap:8px; align-items:start}
+.drow .dl{font-family:var(--f-data); font-size:.74rem; color:var(--bone); padding-top:2px}
+.drow .dl em{display:block; font-style:normal; color:var(--bone-dim); font-size:.68rem}
+.dice{display:flex; flex-wrap:wrap; gap:3px}
+.die{width:19px; height:19px; display:grid; place-items:center; font-family:'Share Tech Mono', monospace; font-size:.72rem; border:1px solid var(--line); color:var(--bone-dim); background:var(--ground-dark)}
+.die.ok{background:var(--brass); border-color:var(--brass); color:var(--on-brass)}
+.die.crit{background:var(--bone); border-color:var(--bone); color:var(--on-brass)}
+.die.saved{background:transparent; border-color:var(--bone-dim); color:var(--bone)}
+.die.fail{background:var(--bad); border-color:var(--bad); color:var(--bone)}
+.die.rr{box-shadow:inset 0 -2px 0 var(--bone)}
+.dnote{font-family:var(--f-data); font-size:.7rem; color:var(--bone-dim); margin-top:2px}
+.tray-res{font-family:var(--f-display); font-weight:700; font-size:1.35rem; color:var(--brass-hi); line-height:1.15}
+html[lang="en"] .tray-res{font-weight:400}
+
+.log{max-height:240px; overflow:auto; font-family:var(--f-data); font-size:.76rem; line-height:1.55; display:flex; flex-direction:column; gap:2px}
+.log div{padding-left:8px; border-left:2px solid var(--line)}
+.log .P{border-color:var(--templar-rim); color:var(--bone)}
+.log .E{border-color:var(--hive); color:var(--hive-text)}
+.log .N{color:var(--brass-hi); border-color:var(--brass)}
+
+/* field manual */
+.manual{margin-top:18px; border-top:1px solid var(--line); padding-top:18px; display:grid; grid-template-columns:repeat(auto-fit, minmax(260px,1fr)); gap:18px 26px}
+.manual h2{grid-column:1/-1; font-family:var(--f-display); font-weight:900; font-size:2rem; margin:0; line-height:1.05}
+html[lang="en"] .manual h2{font-weight:400}
+.manual section{min-width:0}
+.manual h3{margin:0 0 6px; font-size:.78rem; letter-spacing:var(--track); text-transform:uppercase; color:var(--brass); font-weight:600}
+.manual p, .manual li{font-size:.95rem; color:var(--bone); max-width:62ch}
+.manual p{margin:0 0 8px}
+.manual ol, .manual ul{margin:0; padding-left:1.2em; display:flex; flex-direction:column; gap:4px}
+.manual b{font-weight:600; color:var(--brass-hi)}
+.wchart td, .wchart th{font-size:.82rem}
+.foot{font-family:var(--f-data); font-size:.7rem; color:var(--bone-dim); letter-spacing:.04em; margin-top:10px}
+@media (prefers-reduced-motion: reduce){*{transition:none!important; animation:none!important}}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header class="bar">
+    <div class="brand">
+      <h1 data-i18n="brand">Iron <span>Requiem</span></h1>
+      <p class="sub" data-i18n="sub">A grimdark skirmish · Ashen Templars against the Gorehive · 5 battle rounds</p>
+    </div>
+    <div class="scores" id="scores"></div>
+  </header>
+
+  <div class="track" id="track"></div>
+
+  <div class="main">
+    <section class="board-col">
+      <div class="board-wrap">
+        <canvas id="board" tabindex="0" aria-label="Battlefield, 18 by 12 squares. Each square is 2 inches."></canvas>
+        <div class="verdict" id="verdict" hidden></div>
+      </div>
+      <div class="legend">
+        <span><i class="sw wall"></i><span data-i18n="legend.wall">Ruin · blocks sight and movement</span></span>
+        <span><i class="sw rub"></i><span data-i18n="legend.rubble">Rubble · cover</span></span>
+        <span><i class="sw obj"></i><span data-i18n="legend.obj">Objective zone</span></span>
+        <span><i class="sw mv"></i><span data-i18n="legend.move">Reachable square</span></span>
+      </div>
+      <div class="roster" id="roster"></div>
+    </section>
+
+    <aside>
+      <div class="panel orders" id="orders"></div>
+      <div class="panel" id="sheet"></div>
+      <div class="panel" id="tray"></div>
+      <div class="panel"><h2 data-i18n="panel.log">Battle log</h2><div class="log" id="log"></div></div>
+    </aside>
+  </div>
+
+  <div class="manual">
+    <h2 data-i18n="man.title">Field manual</h2>
+    <section><h3 data-i18n="man.turn.h">The turn</h3><div data-i18n="man.turn"></div></section>
+    <section><h3 data-i18n="man.roll.h">Rolling an attack</h3><div data-i18n="man.roll"></div></section>
+    <section><h3 data-i18n="man.rules.h">Weapons &amp; stratagems</h3><div data-i18n="man.rules"></div></section>
+    <section><h3 data-i18n="man.win.h">Victory</h3><div data-i18n="man.win"></div><p class="foot" data-i18n="man.foot"></p></section>
+  </div>
+</div>
+
+<script>
+(() => {
+'use strict';
+const COLS = 18, ROWS = 12;
+const PHASES = ['command','movement','shooting','charge','fight'];
+const NUMERAL = ['I','II','III','IV','V'];
+const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/* ======================= translations ======================= */
+const LANGS = [['en','English'],['zh-Hant','繁體中文'],['zh-Hans','简体中文']];
+let LANG = 'en';
+const s = n => n===1 ? '' : 's';
+const STR = {};
+STR.en = {
+  'brand':'Iron <span>Requiem</span>',
+  'sub':'A grimdark skirmish · Ashen Templars against the Gorehive · 5 battle rounds',
+  'board.aria':'Battlefield, 18 by 12 squares. Each square is 2 inches.',
+  'legend.wall':'Ruin · blocks sight and movement', 'legend.rubble':'Rubble · cover', 'legend.obj':'Objective zone', 'legend.move':'Reachable square',
+  'side.P':'Ashen Templars', 'side.E':'Gorehive',
+  'vp':'VP', 'cp':p=>`${p.n} CP`, 'objectives':'Objectives', 'obj.title':p=>`Objective ${p.n}: ${p.h}`, 'unclaimed':'unclaimed',
+  'round':p=>`Battle round <b>${p.r}</b> / 5`,
+  'ph.command':'Command', 'ph.movement':'Movement', 'ph.shooting':'Shooting', 'ph.charge':'Charge', 'ph.fight':'Fight',
+  'turnOf':p=>`${p.side} turn`, 'battleOver':'Battle over', 'newBattle':'New battle', 'language':'Language',
+  'panel.orders':'Orders', 'panel.phase':p=>`${p.ph} phase`, 'panel.sheet':'Datasheet', 'panel.tray':'Dice tray', 'panel.log':'Battle log',
+  'hint.over':'The battle is decided. Start a new battle to fight again.',
+  'lead.chargers':'Your chargers strike first.', 'lead.back':'Strike back.', 'lead.rest':'Your remaining engaged units fight.',
+  'hint.fightPick':p=>`${p.lead} Pick a melee weapon. The odds are against this target.`,
+  'hint.fightSel':p=>`${p.lead} Tap an adjacent enemy with a red ring to compare ${p.u}'s melee weapons against it.`,
+  'hint.fightNone':p=>`${p.lead} Select an engaged unit, then the enemy it fights.`,
+  'hint.enemyFight':'The Gorehive tears into your lines. Watch the dice.',
+  'hint.strikeBack':'Enemy units in combat strike back.',
+  'hint.enemyTurn':'The Gorehive is moving. Follow it on the board and in the battle log.',
+  'hint.oathSet':p=>`Oath sworn against ${p.u}. Your units re-roll failed hits against it this turn. Tap another enemy to change it.`,
+  'hint.oath':'Swear an Oath of Ash: tap an enemy unit. Your units re-roll failed hit rolls against it this turn.',
+  'hint.move0':'Select a unit to move it. Each square is 2″. Units that stay still fire Heavy weapons at +1 to hit.',
+  'hint.fallback':p=>`${p.u} is in combat. Tap a lit square to fall back. It then can't shoot or charge.`,
+  'hint.move':p=>`Tap a lit square to move ${p.u}${p.adv?' (advanced)':''}. Advancing adds 1–3 squares but blocks charging, and shooting with anything but Assault weapons.`,
+  'hint.shoot0':'Select a unit to shoot with. Dimmed units have already fired or cannot shoot.',
+  'hint.shootPick':'Pick a weapon. Each card shows the odds against this target, counting range, cover, Oath and Fury.',
+  'hint.shootTap':'Tap a target with a red ring to compare your weapons against it.',
+  'hint.shootNone':p=>`${p.u} has no visible target in range.`,
+  'hint.chargeFail':'The charge fell short. Spend a Command Re-roll or try another unit.',
+  'hint.charge0':'Select a unit within 12″ (6 squares) of an enemy to declare a charge.',
+  'hint.charge':p=>`Tap the enemy ${p.u} charges. Roll 2D6″ and reach a square next to it.`,
+  'btn.advance':'Advance · roll D6', 'btn.furyOn':'Fury armed · +1 to wound', 'btn.fury':'Unyielding Fury · 1 CP',
+  'btn.untarget':'Change target', 'btn.reroll':'Command Re-roll · 1 CP',
+  'btn.next.command':'Begin movement', 'btn.next.movement':'End movement', 'btn.next.shooting':'End shooting', 'btn.next.charge':'Go to fight',
+  'btn.again':'Fight again',
+  'vs.combat':'In combat', 'vs.away':p=>`${p.n}″ away`, 'vs.models':p=>`${p.n} model${s(p.n)}`,
+  'mod.oath':'Oath', 'mod.cover':'Target in cover', 'mod.fury':'Fury armed',
+  'wc.best':'Best odds', 'wc.attacks':'Attacks', 'wc.hit':'Hit', 'wc.wound':'Wound', 'wc.unsaved':'Unsaved', 'wc.nosave':'No save',
+  'wc.each':'Each attack', 'wc.avg':'Avg damage', 'wc.slay':'Slay 1+', 'wc.wipe':'Destroy unit',
+  'wc.fire':p=>`Fire ${p.w}`, 'wc.strike':p=>`Strike with ${p.w}`, 'wc.autohit':'auto-hit', 'wc.melee':'Melee',
+  'block.adv':'Advanced this turn: only Assault weapons can fire.',
+  'block.range':p=>`Out of range: target is ${p.n}″ away, weapon reaches ${p.r}″.`,
+  'sheet.empty':'Tap or hover a unit to read its datasheet.',
+  'sheet.strength':p=>`Models <b>${p.m}</b> · Wounds left <b>${p.w}</b>`,
+  'th.weapon':'Weapon', 'th.rng':'Rng', 'th.skill':'Skill', 'sec.ranged':'Ranged', 'sec.melee':'Melee',
+  'flag.destroyed':'Destroyed', 'flag.shaken':'Shaken · OC 0', 'flag.oath':'Oath target', 'flag.combat':'In combat', 'flag.advanced':'Advanced',
+  'flag.moved':'Moved', 'flag.fellBack':'Fell back', 'flag.shot':'Shot', 'flag.charged':'Charged', 'flag.fought':'Fought',
+  'roster.destroyed':'destroyed', 'roster.shaken':'shaken', 'roster.oath':'oath',
+  'tray.empty':'Every hit, wound and save roll lands here.',
+  'tray.shoots':p=>`${p.a} shoots ${p.t}`, 'tray.fights':p=>`${p.a} fights ${p.t}`, 'tray.charges':p=>`${p.a} charges ${p.t}`,
+  'tray.chargeRoll':'Charge roll', 'tray.chargeNote':p=>`${p.sum}″ = ${p.sq} square${s(p.sq)} of movement`,
+  'tray.chargeOk':'Charge succeeds', 'tray.chargeFail':'Charge fails',
+  'row.hit':'Hit', 'row.torrent':'Torrent', 'row.heavy':'Heavy', 'row.oath':'Oath re-rolls', 'row.wound':'Wound', 'row.fury':'Fury',
+  'row.save':'Save', 'row.nosave':'No save', 'row.invuln':'invuln', 'row.cover':'cover',
+  'note.attacks':p=>`${p.n} attack${s(p.n)}`, 'note.rapid':'Rapid Fire', 'note.blast':'Blast', 'note.allHit':'all hit',
+  'note.hits':p=>`→ ${p.n} hit${s(p.n)}${p.lethal?` (${p.lethal} lethal)`:''}`,
+  'note.wounds':p=>`${p.n} wound${s(p.n)}`, 'note.failed':p=>`${p.n} failed`,
+  'res.destroyed':p=>`${p.t} destroyed`, 'res.slain':p=>`${p.n} model${s(p.n)} slain`, 'res.dmg':p=>`${p.n} damage, no models slain`, 'res.none':'No damage',
+  'fl.destroyed':'DESTROYED', 'fl.saved':'saved', 'fl.charge':'CHARGE', 'fl.short':'falls short', 'fl.shaken':'SHAKEN',
+  'verdict.P':'Victory', 'verdict.E':'Defeat', 'verdict.draw':'Stalemate',
+  'verdict.annP':'The Gorehive is purged to the last chitinous husk.', 'verdict.annE':'The Ashen Templars fall. The ruins belong to the swarm.',
+  'verdict.points':p=>`After five battle rounds: Templars ${p.p} VP, Gorehive ${p.e} VP.`,
+  'log.intro':'The Ashen Templars hold the western ruins. The Gorehive surges from the east.',
+  'log.turn':p=>`Round ${p.r}: ${p.side} turn (${p.cp} CP).`,
+  'log.synapse':p=>`${p.u} holds firm under synapse.`,
+  'log.shockFail':p=>`${p.u} fails battle-shock (${p.roll} vs ${p.ld}+). Shaken: OC 0.`,
+  'log.shockPass':p=>`${p.u} passes battle-shock (${p.roll} vs ${p.ld}+).`,
+  'log.score':p=>`${p.side}: ${p.n} objective${s(p.n)} held, +${p.vp} VP.`,
+  'log.winAnn':p=>`${p.side} win by annihilation.`, 'log.winPts':p=>`${p.side} win by victory points.`, 'log.draw':'The battle ends in stalemate.',
+  'log.advE':p=>`${p.u} advances (D6: ${p.r}).`,
+  'log.adrenal':'Adrenal Surge (1 CP): the Matriarch wounds at +1.',
+  'log.oath':p=>`Oath of Ash sworn against ${p.u}.`,
+  'log.fallback':p=>`${p.u} falls back.`,
+  'log.advP':p=>`${p.u} advances: D6 rolled ${p.r}, +${p.n} square${s(p.n)}.`,
+  'log.reroll':'Command Re-roll (1 CP).',
+  'log.fury':p=>`Unyielding Fury: ${p.u} wounds at +1.`,
+  'log.shoots':p=>`${p.a} shoots ${p.t} with ${p.w}: ${p.res}.`,
+  'log.fights':p=>`${p.a} fights ${p.t} with ${p.w}: ${p.res}.`,
+  'log.warlord':p=>`Slay the Warlord: ${p.side} +5 VP.`,
+  'log.chargeOk':p=>`${p.u} charges ${p.t} (${p.n}″) and crashes into combat.`,
+  'log.chargeFail':p=>`${p.u} rolls ${p.n}″ and falls short of ${p.t}.`,
+  'u.vael':'Castellan Vael', 'u.brethren':'Ashen Brethren', 'u.pyre':'Pyre Wardens', 'u.dread':'Reliquary Dreadnought',
+  'u.matriarch':'Hive Matriarch', 'u.clawling':'Clawling Brood', 'u.ravager':'Ravager Brood', 'u.leaper':'Leaper Pack',
+  'wp.bolter':'Master-crafted bolter', 'wp.plasma':'Plasma pistol', 'wp.relic':'Relic blade', 'wp.boltrifle':'Bolt rifle',
+  'wp.frag':'Frag grenade', 'wp.krak':'Krak grenade', 'wp.blades':'Combat blades', 'wp.flamer':'Pyre-flamer',
+  'wp.fragstorm':'Fragstorm launcher', 'wp.fists':'Power fists', 'wp.laslance':'Twin las-lance', 'wp.storm':'Storm bolter',
+  'wp.siege':'Siege fist', 'wp.bile':'Bile spitter', 'wp.acid':'Acid spray', 'wp.scything':'Scything talons',
+  'wp.spines':'Spine-flingers', 'wp.chitin':'Chitin claws', 'wp.devourer':'Devourer', 'wp.venom':'Venom cannon',
+  'wp.rending':'Rending talons', 'wp.rclaws':'Rending claws',
+  'm.strike':'strike', 'm.sweep':'sweep',
+  'tag.Character':'Character', 'tag.Infantry':'Infantry', 'tag.Warlord':'Warlord', 'tag.Battleline':'Battleline',
+  'tag.Heavy infantry':'Heavy infantry', 'tag.Vehicle':'Vehicle', 'tag.Walker':'Walker', 'tag.Monster':'Monster',
+  'tag.Synapse':'Synapse', 'tag.Swarm':'Swarm', 'tag.Swift':'Swift',
+  'ab.rapid':p=>`Rapid Fire ${p.n}`, 'ab.heavy':'Heavy', 'ab.assault':'Assault', 'ab.torrent':'Torrent',
+  'ab.lethal':'Lethal Hits', 'ab.blast':'Blast', 'ab.grenade':'Grenade',
+  'man.title':'Field manual',
+  'man.turn.h':'The turn',
+  'man.turn':`<ol>
+    <li><b>Command.</b> Gain 1 CP. Units below half strength take a battle-shock test (2D6 against Leadership). Shaken units have OC 0. Then swear your Oath of Ash on one enemy unit.</li>
+    <li><b>Movement.</b> Move up to M. You can't end next to an enemy. Advance adds D6″ (1–3 squares) but stops shooting, except with Assault weapons, and stops charging. Engaged units may fall back instead.</li>
+    <li><b>Shooting.</b> Pick a unit, then a visible target. Choose one of its weapons; each card shows the odds against that target before you fire. Units in combat can't shoot or be shot.</li>
+    <li><b>Charge.</b> Within 12″ of an enemy, roll 2D6″. If you can reach a square next to the target, you're in.</li>
+    <li><b>Fight.</b> Chargers strike first. The defender's engaged units strike next, then everyone else. Each unit picks one melee weapon.</li></ol>`,
+  'man.roll.h':'Rolling an attack',
+  'man.roll':`<p><b>Hit</b> on the weapon's BS or WS. A 1 always fails and a 6 always hits. <b>Wound</b> by comparing Strength to Toughness:</p>
+    <div class="wtab"><table class="wchart"><thead><tr><th>Strength vs Toughness</th><th>Wound on</th></tr></thead><tbody>
+    <tr><td>S is double T or more</td><td>2+</td></tr><tr><td>S greater than T</td><td>3+</td></tr><tr><td>S equals T</td><td>4+</td></tr>
+    <tr><td>S less than T</td><td>5+</td></tr><tr><td>S is half T or less</td><td>6+</td></tr></tbody></table></div>
+    <p style="margin-top:8px">The defender <b>saves</b> on Sv worsened by AP. Rubble gives +1 against shooting, though not to a 3+ save against AP 0. An invulnerable save ignores AP. Each failed save deals D damage to one model. Extra damage beyond that model's wounds is lost.</p>`,
+  'man.rules.h':'Weapons & stratagems',
+  'man.rules':`<ul>
+    <li><b>Rapid Fire X</b>: +X attacks per model at half range. <b>Heavy</b>: +1 to hit if the unit stayed still. <b>Torrent</b>: hits automatically. <b>Lethal Hits</b>: a 6 to hit wounds automatically. <b>Blast</b>: +1 attack per 5 models in the target. <b>Grenade</b>: one model throws it.</li>
+    <li><b>Oath of Ash</b> (free, each turn). Re-roll failed hit rolls against the sworn enemy.</li>
+    <li><b>Unyielding Fury</b> (1 CP). The next attack your unit makes this phase gets +1 to wound.</li>
+    <li><b>Command Re-roll</b> (1 CP). Re-roll a failed charge.</li>
+    <li><b>Synapse.</b> Gorehive units within 12″ of their Matriarch never take battle-shock tests.</li></ul>`,
+  'man.win.h':'Victory',
+  'man.win':`<p>A side controls an objective when it has more Objective Control (OC × models) inside the dashed zone. Control stays put on a tie.</p>
+    <p>From round 2, each side scores <b>5 VP per objective</b> it controls at the end of its own turn, up to 15. Killing the enemy warlord is worth <b>+5 VP</b>. Wipe the enemy out and you win on the spot. Otherwise the most VP after round 5 wins.</p>`,
+  'man.foot':'A fan-made skirmish inspired by grimdark tabletop wargames. All factions, names, art and rules are original.',
+};
+STR['zh-Hant'] = /*HANT*/{
+  'brand':'鋼鐵<span>安魂曲</span>',
+  'sub':'黑暗科幻小規模戰鬥 · 灰燼聖殿騎士對決血巢 · 共 5 個戰鬥輪',
+  'board.aria':'戰場，18 × 12 格，每格 2 吋。',
+  'legend.wall':'廢墟 · 阻擋視線與移動', 'legend.rubble':'瓦礫 · 提供掩體', 'legend.obj':'目標區域', 'legend.move':'可到達的格子',
+  'side.P':'灰燼聖殿騎士', 'side.E':'血巢',
+  'vp':'勝利分', 'cp':p=>`${p.n} 指揮點`, 'objectives':'目標點', 'obj.title':p=>`目標點 ${p.n}：${p.h}`, 'unclaimed':'無人控制',
+  'round':p=>`戰鬥輪 <b>${p.r}</b> / 5`,
+  'ph.command':'指揮', 'ph.movement':'移動', 'ph.shooting':'射擊', 'ph.charge':'衝鋒', 'ph.fight':'格鬥',
+  'turnOf':p=>`${p.side}回合`, 'battleOver':'戰鬥結束', 'newBattle':'新戰鬥', 'language':'語言',
+  'panel.orders':'命令', 'panel.phase':p=>`${p.ph}階段`, 'panel.sheet':'資料卡', 'panel.tray':'骰盤', 'panel.log':'戰鬥紀錄',
+  'hint.over':'勝負已分。開始新戰鬥再戰一場。',
+  'lead.chargers':'你的衝鋒單位先攻擊。', 'lead.back':'反擊！', 'lead.rest':'你其餘交戰中的單位進行格鬥。',
+  'hint.fightPick':p=>`${p.lead}選擇一件近戰武器。勝率以此目標計算。`,
+  'hint.fightSel':p=>`${p.lead}點擊相鄰且有紅圈的敵人，比較${p.u}的近戰武器對它的勝率。`,
+  'hint.fightNone':p=>`${p.lead}選擇一個交戰中的單位，再選擇它要攻擊的敵人。`,
+  'hint.enemyFight':'血巢正撕裂你的防線。留意骰子結果。',
+  'hint.strikeBack':'交戰中的敵方單位進行反擊。',
+  'hint.enemyTurn':'血巢正在行動。請留意戰場與戰鬥紀錄。',
+  'hint.oathSet':p=>`已向${p.u}立下誓約。本回合你的單位對它的失敗命中骰可重擲。點擊其他敵人可更換目標。`,
+  'hint.oath':'立下灰燼誓約：點擊一個敵方單位。本回合你的單位對它的失敗命中骰可重擲。',
+  'hint.move0':'選擇一個單位進行移動。每格為 2 吋。保持不動的單位使用重型武器時命中 +1。',
+  'hint.fallback':p=>`${p.u}正在交戰。點擊亮起的格子撤退。撤退後不能射擊或衝鋒。`,
+  'hint.move':p=>`點擊亮起的格子移動${p.u}${p.adv?'（已急進）':''}。急進可多走 1–3 格，但不能衝鋒，且只能用突擊武器射擊。`,
+  'hint.shoot0':'選擇一個單位進行射擊。變暗的單位已射擊或無法射擊。',
+  'hint.shootPick':'選擇武器。每張卡片顯示對此目標的勝率，已計入射程、掩體、誓約與怒火。',
+  'hint.shootTap':'點擊有紅圈的目標，比較你的武器對它的勝率。',
+  'hint.shootNone':p=>`${p.u}在射程內沒有可見目標。`,
+  'hint.chargeFail':'衝鋒距離不足。可花費指揮重擲，或改用其他單位。',
+  'hint.charge0':'選擇一個距離敵人 12 吋（6 格）以內的單位宣告衝鋒。',
+  'hint.charge':p=>`點擊${p.u}要衝鋒的敵人。擲 2D6 吋，需到達目標旁邊的格子。`,
+  'btn.advance':'急進 · 擲 D6', 'btn.furyOn':'怒火已啟動 · 致傷 +1', 'btn.fury':'不屈之怒 · 1 指揮點',
+  'btn.untarget':'更換目標', 'btn.reroll':'指揮重擲 · 1 指揮點',
+  'btn.next.command':'開始移動', 'btn.next.movement':'結束移動', 'btn.next.shooting':'結束射擊', 'btn.next.charge':'進入格鬥',
+  'btn.again':'再戰一場',
+  'vs.combat':'交戰中', 'vs.away':p=>`距離 ${p.n} 吋`, 'vs.models':p=>`${p.n} 名模型`,
+  'mod.oath':'誓約', 'mod.cover':'目標在掩體中', 'mod.fury':'怒火已啟動',
+  'wc.best':'最佳勝率', 'wc.attacks':'攻擊次數', 'wc.hit':'命中', 'wc.wound':'致傷', 'wc.unsaved':'未豁免', 'wc.nosave':'無豁免',
+  'wc.each':'每次攻擊', 'wc.avg':'平均傷害', 'wc.slay':'擊殺 1+', 'wc.wipe':'全滅',
+  'wc.fire':p=>`以${p.w}射擊`, 'wc.strike':p=>`以${p.w}攻擊`, 'wc.autohit':'自動命中', 'wc.melee':'近戰',
+  'block.adv':'本回合已急進：只有突擊武器可以射擊。',
+  'block.range':p=>`超出射程：目標在 ${p.n} 吋外，武器射程為 ${p.r} 吋。`,
+  'sheet.empty':'點擊或懸停在單位上，查看它的資料卡。',
+  'sheet.strength':p=>`模型 <b>${p.m}</b> · 剩餘傷口 <b>${p.w}</b>`,
+  'th.weapon':'武器', 'th.rng':'射程', 'th.skill':'技能', 'sec.ranged':'遠程', 'sec.melee':'近戰',
+  'flag.destroyed':'已摧毀', 'flag.shaken':'動搖 · 控制值 0', 'flag.oath':'誓約目標', 'flag.combat':'交戰中', 'flag.advanced':'已急進',
+  'flag.moved':'已移動', 'flag.fellBack':'已撤退', 'flag.shot':'已射擊', 'flag.charged':'已衝鋒', 'flag.fought':'已格鬥',
+  'roster.destroyed':'已摧毀', 'roster.shaken':'動搖', 'roster.oath':'誓約',
+  'tray.empty':'每一次命中、致傷與豁免骰都會顯示在這裡。',
+  'tray.shoots':p=>`${p.a}射擊${p.t}`, 'tray.fights':p=>`${p.a}攻擊${p.t}`, 'tray.charges':p=>`${p.a}衝鋒${p.t}`,
+  'tray.chargeRoll':'衝鋒骰', 'tray.chargeNote':p=>`${p.sum} 吋 = 可移動 ${p.sq} 格`,
+  'tray.chargeOk':'衝鋒成功', 'tray.chargeFail':'衝鋒失敗',
+  'row.hit':'命中', 'row.torrent':'洪流', 'row.heavy':'重型', 'row.oath':'誓約重擲', 'row.wound':'致傷', 'row.fury':'怒火',
+  'row.save':'豁免', 'row.nosave':'無豁免', 'row.invuln':'特殊豁免', 'row.cover':'掩體',
+  'note.attacks':p=>`${p.n} 次攻擊`, 'note.rapid':'速射', 'note.blast':'爆破', 'note.allHit':'全部命中',
+  'note.hits':p=>`→ ${p.n} 次命中${p.lethal?`（${p.lethal} 次致命）`:''}`,
+  'note.wounds':p=>`${p.n} 次致傷`, 'note.failed':p=>`${p.n} 次失敗`,
+  'res.destroyed':p=>`${p.t}被摧毀`, 'res.slain':p=>`擊殺 ${p.n} 名模型`, 'res.dmg':p=>`造成 ${p.n} 點傷害，未擊殺模型`, 'res.none':'沒有造成傷害',
+  'fl.destroyed':'摧毀', 'fl.saved':'豁免', 'fl.charge':'衝鋒！', 'fl.short':'未達', 'fl.shaken':'動搖',
+  'verdict.P':'勝利', 'verdict.E':'敗北', 'verdict.draw':'僵局',
+  'verdict.annP':'血巢被淨化至最後一具甲殼。', 'verdict.annE':'灰燼聖殿騎士倒下了。廢墟歸屬於蟲群。',
+  'verdict.points':p=>`五個戰鬥輪後：聖殿騎士 ${p.p} 勝利分，血巢 ${p.e} 勝利分。`,
+  'log.intro':'灰燼聖殿騎士據守西方廢墟。血巢從東方湧來。',
+  'log.turn':p=>`第 ${p.r} 戰鬥輪：${p.side}回合（${p.cp} 指揮點）。`,
+  'log.synapse':p=>`${p.u}在突觸支配下堅守不退。`,
+  'log.shockFail':p=>`${p.u}戰鬥動搖檢定失敗（${p.roll} 對 ${p.ld}+）。動搖：控制值 0。`,
+  'log.shockPass':p=>`${p.u}通過戰鬥動搖檢定（${p.roll} 對 ${p.ld}+）。`,
+  'log.score':p=>`${p.side}：控制 ${p.n} 個目標點，+${p.vp} 勝利分。`,
+  'log.winAnn':p=>`${p.side}以全殲獲勝。`, 'log.winPts':p=>`${p.side}以勝利分獲勝。`, 'log.draw':'戰鬥以僵局收場。',
+  'log.advE':p=>`${p.u}急進（D6：${p.r}）。`,
+  'log.adrenal':'腎上腺激湧（1 指揮點）：巢母致傷 +1。',
+  'log.oath':p=>`向${p.u}立下灰燼誓約。`,
+  'log.fallback':p=>`${p.u}撤退。`,
+  'log.advP':p=>`${p.u}急進：D6 擲出 ${p.r}，+${p.n} 格。`,
+  'log.reroll':'指揮重擲（1 指揮點）。',
+  'log.fury':p=>`不屈之怒：${p.u}致傷 +1。`,
+  'log.shoots':p=>`${p.a}以${p.w}射擊${p.t}：${p.res}。`,
+  'log.fights':p=>`${p.a}以${p.w}攻擊${p.t}：${p.res}。`,
+  'log.warlord':p=>`斬首主帥：${p.side} +5 勝利分。`,
+  'log.chargeOk':p=>`${p.u}衝鋒${p.t}（${p.n} 吋），殺入戰團！`,
+  'log.chargeFail':p=>`${p.u}擲出 ${p.n} 吋，未能衝到${p.t}。`,
+  'u.vael':'城主維爾', 'u.brethren':'灰燼兄弟', 'u.pyre':'火葬守衛', 'u.dread':'聖骸無畏機甲',
+  'u.matriarch':'巢母', 'u.clawling':'爪蟲群', 'u.ravager':'掠奪者群', 'u.leaper':'躍襲獸群',
+  'wp.bolter':'精工爆矢槍', 'wp.plasma':'等離子手槍', 'wp.relic':'聖物之刃', 'wp.boltrifle':'爆矢步槍',
+  'wp.frag':'破片手榴彈', 'wp.krak':'穿甲手榴彈', 'wp.blades':'戰鬥刀', 'wp.flamer':'火葬噴火器',
+  'wp.fragstorm':'破片風暴發射器', 'wp.fists':'動力拳', 'wp.laslance':'雙聯雷射長槍', 'wp.storm':'風暴爆矢槍',
+  'wp.siege':'攻城拳', 'wp.bile':'膽汁噴射器', 'wp.acid':'酸液噴霧', 'wp.scything':'鐮刃爪',
+  'wp.spines':'棘刺投射器', 'wp.chitin':'甲殼爪', 'wp.devourer':'吞噬者', 'wp.venom':'毒液砲',
+  'wp.rending':'撕裂爪', 'wp.rclaws':'撕裂利爪',
+  'm.strike':'重擊', 'm.sweep':'橫掃',
+  'tag.Character':'角色', 'tag.Infantry':'步兵', 'tag.Warlord':'主帥', 'tag.Battleline':'戰線',
+  'tag.Heavy infantry':'重步兵', 'tag.Vehicle':'載具', 'tag.Walker':'步行機', 'tag.Monster':'怪獸',
+  'tag.Synapse':'突觸', 'tag.Swarm':'蟲群', 'tag.Swift':'迅捷',
+  'ab.rapid':p=>`速射 ${p.n}`, 'ab.heavy':'重型', 'ab.assault':'突擊', 'ab.torrent':'洪流',
+  'ab.lethal':'致命命中', 'ab.blast':'爆破', 'ab.grenade':'手榴彈',
+  'man.title':'野戰手冊',
+  'man.turn.h':'回合流程',
+  'man.turn':`<ol>
+    <li><b>指揮。</b>獲得 1 指揮點。低於半數兵力的單位進行戰鬥動搖檢定（2D6 對領導力）。動搖單位的控制值為 0。接著對一個敵方單位立下灰燼誓約。</li>
+    <li><b>移動。</b>最多移動 M。不能停在敵人旁邊。急進額外移動 D6 吋（1–3 格），但除突擊武器外不能射擊，也不能衝鋒。交戰中的單位可以改為撤退。</li>
+    <li><b>射擊。</b>選擇一個單位，再選擇一個可見目標。從它的武器中挑選一件；每張卡片會在開火前顯示對該目標的勝率。交戰中的單位不能射擊，也不能被射擊。</li>
+    <li><b>衝鋒。</b>距離敵人 12 吋以內時擲 2D6 吋。若能到達目標旁邊的格子，便成功殺入。</li>
+    <li><b>格鬥。</b>衝鋒單位先攻擊，接著是防守方交戰中的單位，最後是其他所有單位。每個單位選擇一件近戰武器。</li></ol>`,
+  'man.roll.h':'擲骰攻擊',
+  'man.roll':`<p><b>命中</b>：擲出武器的 BS 或 WS 以上。1 必定失敗，6 必定命中。<b>致傷</b>：比較力量與韌性：</p>
+    <div class="wtab"><table class="wchart"><thead><tr><th>力量對韌性</th><th>致傷需求</th></tr></thead><tbody>
+    <tr><td>力量為韌性兩倍或以上</td><td>2+</td></tr><tr><td>力量大於韌性</td><td>3+</td></tr><tr><td>力量等於韌性</td><td>4+</td></tr>
+    <tr><td>力量小於韌性</td><td>5+</td></tr><tr><td>力量為韌性一半或以下</td><td>6+</td></tr></tbody></table></div>
+    <p style="margin-top:8px">防守方以 Sv 進行<b>豁免</b>，並按 AP 變差。瓦礫對射擊提供 +1，但 3+ 豁免對 AP 0 不適用。特殊豁免無視 AP。每次豁免失敗對一名模型造成 D 點傷害，超出該模型傷口的傷害會被浪費。</p>`,
+  'man.rules.h':'武器與戰略',
+  'man.rules':`<ul>
+    <li><b>速射 X</b>：半射程內每名模型 +X 次攻擊。<b>重型</b>：單位未移動時命中 +1。<b>洪流</b>：自動命中。<b>致命命中</b>：命中骰擲出 6 時自動致傷。<b>爆破</b>：目標每 5 名模型 +1 次攻擊。<b>手榴彈</b>：只由一名模型投擲。</li>
+    <li><b>灰燼誓約</b>（免費，每回合）：對誓約目標的失敗命中骰可重擲。</li>
+    <li><b>不屈之怒</b>（1 指揮點）：你的單位本階段下一次攻擊致傷 +1。</li>
+    <li><b>指揮重擲</b>（1 指揮點）：重擲一次失敗的衝鋒。</li>
+    <li><b>突觸</b>：距離巢母 12 吋以內的血巢單位永遠不需進行戰鬥動搖檢定。</li></ul>`,
+  'man.win.h':'勝利條件',
+  'man.win':`<p>一方在虛線區域內的目標控制值（控制值 × 模型數）較高時，即控制該目標點。平手時維持原控制方。</p>
+    <p>從第 2 戰鬥輪起，每方在自己回合結束時，每控制一個目標點得 <b>5 勝利分</b>，最多 15 分。擊殺敵方主帥得 <b>+5 勝利分</b>。全殲敵軍即刻獲勝。否則第 5 戰鬥輪結束時勝利分最高者獲勝。</p>`,
+  'man.foot':'一款受黑暗桌上戰棋啟發的同人小規模戰鬥遊戲。所有陣營、名稱、美術與規則均為原創。',
+}/*END-HANT*/;
+STR['zh-Hans'] = /*HANS*/{
+  'brand':'钢铁<span>安魂曲</span>',
+  'sub':'黑暗科幻小规模战斗 · 灰烬圣殿骑士对决血巢 · 共 5 个战斗轮',
+  'board.aria':'战场，18 × 12 格，每格 2 英寸。',
+  'legend.wall':'废墟 · 阻挡视线与移动', 'legend.rubble':'瓦砾 · 提供掩体', 'legend.obj':'目标区域', 'legend.move':'可到达的格子',
+  'side.P':'灰烬圣殿骑士', 'side.E':'血巢',
+  'vp':'胜利分', 'cp':p=>`${p.n} 指挥点`, 'objectives':'目标点', 'obj.title':p=>`目标点 ${p.n}：${p.h}`, 'unclaimed':'无人控制',
+  'round':p=>`战斗轮 <b>${p.r}</b> / 5`,
+  'ph.command':'指挥', 'ph.movement':'移动', 'ph.shooting':'射击', 'ph.charge':'冲锋', 'ph.fight':'格斗',
+  'turnOf':p=>`${p.side}回合`, 'battleOver':'战斗结束', 'newBattle':'新战斗', 'language':'语言',
+  'panel.orders':'命令', 'panel.phase':p=>`${p.ph}阶段`, 'panel.sheet':'数据卡', 'panel.tray':'骰盘', 'panel.log':'战斗记录',
+  'hint.over':'胜负已分。开始新战斗再战一场。',
+  'lead.chargers':'你的冲锋单位先攻击。', 'lead.back':'反击！', 'lead.rest':'你其余交战中的单位进行格斗。',
+  'hint.fightPick':p=>`${p.lead}选择一件近战武器。胜率以此目标计算。`,
+  'hint.fightSel':p=>`${p.lead}点击相邻且有红圈的敌人，比较${p.u}的近战武器对它的胜率。`,
+  'hint.fightNone':p=>`${p.lead}选择一个交战中的单位，再选择它要攻击的敌人。`,
+  'hint.enemyFight':'血巢正撕裂你的防线。留意骰子结果。',
+  'hint.strikeBack':'交战中的敌方单位进行反击。',
+  'hint.enemyTurn':'血巢正在行动。请留意战场与战斗记录。',
+  'hint.oathSet':p=>`已向${p.u}立下誓约。本回合你的单位对它的失败命中骰可重掷。点击其他敌人可更换目标。`,
+  'hint.oath':'立下灰烬誓约：点击一个敌方单位。本回合你的单位对它的失败命中骰可重掷。',
+  'hint.move0':'选择一个单位进行移动。每格为 2 英寸。保持不动的单位使用重型武器时命中 +1。',
+  'hint.fallback':p=>`${p.u}正在交战。点击亮起的格子撤退。撤退后不能射击或冲锋。`,
+  'hint.move':p=>`点击亮起的格子移动${p.u}${p.adv?'（已急进）':''}。急进可多走 1–3 格，但不能冲锋，且只能用突击武器射击。`,
+  'hint.shoot0':'选择一个单位进行射击。变暗的单位已射击或无法射击。',
+  'hint.shootPick':'选择武器。每张卡片显示对此目标的胜率，已计入射程、掩体、誓约与怒火。',
+  'hint.shootTap':'点击有红圈的目标，比较你的武器对它的胜率。',
+  'hint.shootNone':p=>`${p.u}在射程内没有可见目标。`,
+  'hint.chargeFail':'冲锋距离不足。可花费指挥重掷，或改用其他单位。',
+  'hint.charge0':'选择一个距离敌人 12 英寸（6 格）以内的单位声明冲锋。',
+  'hint.charge':p=>`点击${p.u}要冲锋的敌人。掷 2D6 英寸，需到达目标旁边的格子。`,
+  'btn.advance':'急进 · 掷 D6', 'btn.furyOn':'怒火已启动 · 致伤 +1', 'btn.fury':'不屈之怒 · 1 指挥点',
+  'btn.untarget':'更换目标', 'btn.reroll':'指挥重掷 · 1 指挥点',
+  'btn.next.command':'开始移动', 'btn.next.movement':'结束移动', 'btn.next.shooting':'结束射击', 'btn.next.charge':'进入格斗',
+  'btn.again':'再战一场',
+  'vs.combat':'交战中', 'vs.away':p=>`距离 ${p.n} 英寸`, 'vs.models':p=>`${p.n} 名模型`,
+  'mod.oath':'誓约', 'mod.cover':'目标在掩体中', 'mod.fury':'怒火已启动',
+  'wc.best':'最佳胜率', 'wc.attacks':'攻击次数', 'wc.hit':'命中', 'wc.wound':'致伤', 'wc.unsaved':'未豁免', 'wc.nosave':'无豁免',
+  'wc.each':'每次攻击', 'wc.avg':'平均伤害', 'wc.slay':'击杀 1+', 'wc.wipe':'全灭',
+  'wc.fire':p=>`以${p.w}射击`, 'wc.strike':p=>`以${p.w}攻击`, 'wc.autohit':'自动命中', 'wc.melee':'近战',
+  'block.adv':'本回合已急进：只有突击武器可以射击。',
+  'block.range':p=>`超出射程：目标在 ${p.n} 英寸外，武器射程为 ${p.r} 英寸。`,
+  'sheet.empty':'点击或悬停在单位上，查看它的数据卡。',
+  'sheet.strength':p=>`模型 <b>${p.m}</b> · 剩余伤口 <b>${p.w}</b>`,
+  'th.weapon':'武器', 'th.rng':'射程', 'th.skill':'技能', 'sec.ranged':'远程', 'sec.melee':'近战',
+  'flag.destroyed':'已摧毁', 'flag.shaken':'动摇 · 控制值 0', 'flag.oath':'誓约目标', 'flag.combat':'交战中', 'flag.advanced':'已急进',
+  'flag.moved':'已移动', 'flag.fellBack':'已撤退', 'flag.shot':'已射击', 'flag.charged':'已冲锋', 'flag.fought':'已格斗',
+  'roster.destroyed':'已摧毁', 'roster.shaken':'动摇', 'roster.oath':'誓约',
+  'tray.empty':'每一次命中、致伤与豁免骰都会显示在这里。',
+  'tray.shoots':p=>`${p.a}射击${p.t}`, 'tray.fights':p=>`${p.a}攻击${p.t}`, 'tray.charges':p=>`${p.a}冲锋${p.t}`,
+  'tray.chargeRoll':'冲锋骰', 'tray.chargeNote':p=>`${p.sum} 英寸 = 可移动 ${p.sq} 格`,
+  'tray.chargeOk':'冲锋成功', 'tray.chargeFail':'冲锋失败',
+  'row.hit':'命中', 'row.torrent':'洪流', 'row.heavy':'重型', 'row.oath':'誓约重掷', 'row.wound':'致伤', 'row.fury':'怒火',
+  'row.save':'豁免', 'row.nosave':'无豁免', 'row.invuln':'特殊豁免', 'row.cover':'掩体',
+  'note.attacks':p=>`${p.n} 次攻击`, 'note.rapid':'速射', 'note.blast':'爆破', 'note.allHit':'全部命中',
+  'note.hits':p=>`→ ${p.n} 次命中${p.lethal?`（${p.lethal} 次致命）`:''}`,
+  'note.wounds':p=>`${p.n} 次致伤`, 'note.failed':p=>`${p.n} 次失败`,
+  'res.destroyed':p=>`${p.t}被摧毁`, 'res.slain':p=>`击杀 ${p.n} 名模型`, 'res.dmg':p=>`造成 ${p.n} 点伤害，未击杀模型`, 'res.none':'没有造成伤害',
+  'fl.destroyed':'摧毁', 'fl.saved':'豁免', 'fl.charge':'冲锋！', 'fl.short':'未达', 'fl.shaken':'动摇',
+  'verdict.P':'胜利', 'verdict.E':'败北', 'verdict.draw':'僵局',
+  'verdict.annP':'血巢被净化至最后一具甲壳。', 'verdict.annE':'灰烬圣殿骑士倒下了。废墟归属于虫群。',
+  'verdict.points':p=>`五个战斗轮后：圣殿骑士 ${p.p} 胜利分，血巢 ${p.e} 胜利分。`,
+  'log.intro':'灰烬圣殿骑士据守西方废墟。血巢从东方涌来。',
+  'log.turn':p=>`第 ${p.r} 战斗轮：${p.side}回合（${p.cp} 指挥点）。`,
+  'log.synapse':p=>`${p.u}在突触支配下坚守不退。`,
+  'log.shockFail':p=>`${p.u}战斗动摇检定失败（${p.roll} 对 ${p.ld}+）。动摇：控制值 0。`,
+  'log.shockPass':p=>`${p.u}通过战斗动摇检定（${p.roll} 对 ${p.ld}+）。`,
+  'log.score':p=>`${p.side}：控制 ${p.n} 个目标点，+${p.vp} 胜利分。`,
+  'log.winAnn':p=>`${p.side}以全歼获胜。`, 'log.winPts':p=>`${p.side}以胜利分获胜。`, 'log.draw':'战斗以僵局收场。',
+  'log.advE':p=>`${p.u}急进（D6：${p.r}）。`,
+  'log.adrenal':'肾上腺激涌（1 指挥点）：巢母致伤 +1。',
+  'log.oath':p=>`向${p.u}立下灰烬誓约。`,
+  'log.fallback':p=>`${p.u}撤退。`,
+  'log.advP':p=>`${p.u}急进：D6 掷出 ${p.r}，+${p.n} 格。`,
+  'log.reroll':'指挥重掷（1 指挥点）。',
+  'log.fury':p=>`不屈之怒：${p.u}致伤 +1。`,
+  'log.shoots':p=>`${p.a}以${p.w}射击${p.t}：${p.res}。`,
+  'log.fights':p=>`${p.a}以${p.w}攻击${p.t}：${p.res}。`,
+  'log.warlord':p=>`斩首主帅：${p.side} +5 胜利分。`,
+  'log.chargeOk':p=>`${p.u}冲锋${p.t}（${p.n} 英寸），杀入战团！`,
+  'log.chargeFail':p=>`${p.u}掷出 ${p.n} 英寸，未能冲到${p.t}。`,
+  'u.vael':'城主维尔', 'u.brethren':'灰烬兄弟', 'u.pyre':'火葬守卫', 'u.dread':'圣骸无畏机甲',
+  'u.matriarch':'巢母', 'u.clawling':'爪虫群', 'u.ravager':'掠夺者群', 'u.leaper':'跃袭兽群',
+  'wp.bolter':'精工爆矢枪', 'wp.plasma':'等离子手枪', 'wp.relic':'圣物之刃', 'wp.boltrifle':'爆矢步枪',
+  'wp.frag':'破片手榴弹', 'wp.krak':'穿甲手榴弹', 'wp.blades':'战斗刀', 'wp.flamer':'火葬喷火器',
+  'wp.fragstorm':'破片风暴发射器', 'wp.fists':'动力拳', 'wp.laslance':'双联激光长枪', 'wp.storm':'风暴爆矢枪',
+  'wp.siege':'攻城拳', 'wp.bile':'胆汁喷射器', 'wp.acid':'酸液喷雾', 'wp.scything':'镰刃爪',
+  'wp.spines':'棘刺投射器', 'wp.chitin':'甲壳爪', 'wp.devourer':'吞噬者', 'wp.venom':'毒液砲',
+  'wp.rending':'撕裂爪', 'wp.rclaws':'撕裂利爪',
+  'm.strike':'重击', 'm.sweep':'横扫',
+  'tag.Character':'角色', 'tag.Infantry':'步兵', 'tag.Warlord':'主帅', 'tag.Battleline':'战线',
+  'tag.Heavy infantry':'重步兵', 'tag.Vehicle':'载具', 'tag.Walker':'步行机', 'tag.Monster':'怪兽',
+  'tag.Synapse':'突触', 'tag.Swarm':'虫群', 'tag.Swift':'迅捷',
+  'ab.rapid':p=>`速射 ${p.n}`, 'ab.heavy':'重型', 'ab.assault':'突击', 'ab.torrent':'洪流',
+  'ab.lethal':'致命命中', 'ab.blast':'爆破', 'ab.grenade':'手榴弹',
+  'man.title':'野战手册',
+  'man.turn.h':'回合流程',
+  'man.turn':`<ol>
+    <li><b>指挥。</b>获得 1 指挥点。低于半数兵力的单位进行战斗动摇检定（2D6 对领导力）。动摇单位的控制值为 0。接着对一个敌方单位立下灰烬誓约。</li>
+    <li><b>移动。</b>最多移动 M。不能停在敌人旁边。急进额外移动 D6 英寸（1–3 格），但除突击武器外不能射击，也不能冲锋。交战中的单位可以改为撤退。</li>
+    <li><b>射击。</b>选择一个单位，再选择一个可见目标。从它的武器中挑选一件；每张卡片会在开火前显示对该目标的胜率。交战中的单位不能射击，也不能被射击。</li>
+    <li><b>冲锋。</b>距离敌人 12 英寸以内时掷 2D6 英寸。若能到达目标旁边的格子，便成功杀入。</li>
+    <li><b>格斗。</b>冲锋单位先攻击，接着是防守方交战中的单位，最后是其他所有单位。每个单位选择一件近战武器。</li></ol>`,
+  'man.roll.h':'掷骰攻击',
+  'man.roll':`<p><b>命中</b>：掷出武器的 BS 或 WS 以上。1 必定失败，6 必定命中。<b>致伤</b>：比较力量与韧性：</p>
+    <div class="wtab"><table class="wchart"><thead><tr><th>力量对韧性</th><th>致伤需求</th></tr></thead><tbody>
+    <tr><td>力量为韧性两倍或以上</td><td>2+</td></tr><tr><td>力量大于韧性</td><td>3+</td></tr><tr><td>力量等于韧性</td><td>4+</td></tr>
+    <tr><td>力量小于韧性</td><td>5+</td></tr><tr><td>力量为韧性一半或以下</td><td>6+</td></tr></tbody></table></div>
+    <p style="margin-top:8px">防守方以 Sv 进行<b>豁免</b>，并按 AP 变差。瓦砾对射击提供 +1，但 3+ 豁免对 AP 0 不适用。特殊豁免无视 AP。每次豁免失败对一名模型造成 D 点伤害，超出该模型伤口的伤害会被浪费。</p>`,
+  'man.rules.h':'武器与战略',
+  'man.rules':`<ul>
+    <li><b>速射 X</b>：半射程内每名模型 +X 次攻击。<b>重型</b>：单位未移动时命中 +1。<b>洪流</b>：自动命中。<b>致命命中</b>：命中骰掷出 6 时自动致伤。<b>爆破</b>：目标每 5 名模型 +1 次攻击。<b>手榴弹</b>：只由一名模型投掷。</li>
+    <li><b>灰烬誓约</b>（免费，每回合）：对誓约目标的失败命中骰可重掷。</li>
+    <li><b>不屈之怒</b>（1 指挥点）：你的单位本阶段下一次攻击致伤 +1。</li>
+    <li><b>指挥重掷</b>（1 指挥点）：重掷一次失败的冲锋。</li>
+    <li><b>突触</b>：距离巢母 12 英寸以内的血巢单位永远不需进行战斗动摇检定。</li></ul>`,
+  'man.win.h':'胜利条件',
+  'man.win':`<p>一方在虚线区域内的目标控制值（控制值 × 模型数）较高时，即控制该目标点。平手时维持原控制方。</p>
+    <p>从第 2 战斗轮起，每方在自己回合结束时，每控制一个目标点得 <b>5 胜利分</b>，最多 15 分。击杀敌方主帅得 <b>+5 胜利分</b>。全歼敌军即刻获胜。否则第 5 战斗轮结束时胜利分最高者获胜。</p>`,
+  'man.foot':'一款受黑暗桌上战棋启发的同人小规模战斗游戏。所有阵营、名称、美术与规则均为原创。',
+}/*END-HANS*/;
+
+function t(k, p={}){ const d = STR[LANG][k] ?? STR.en[k]; return d === undefined ? k : typeof d === 'function' ? d(p) : d; }
+const sideName = sd => t('side.'+sd);
+const unitName = u => u ? t('u.'+u.key) + (u.abbr ? ' '+u.abbr : '') : '';
+const N = id => unitName(byId(id));
+function wName(w, inline){ // inline: used mid-sentence ("with bolt rifle (sweep)")
+  const base = t('wp.'+w.id), mode = w.mode ? t('m.'+w.mode) : '';
+  if (LANG==='en') return inline ? base.toLowerCase() + (mode ? ` (${mode})` : '') : base + (mode ? ` · ${mode}` : '');
+  return base + (mode ? (inline ? `（${mode}）` : ` · ${mode}`) : '');
+}
+const wRef = (u, w, melee) => ({k:u.key, m:melee?1:0, i:(melee ? DEF[u.key].melee : DEF[u.key].ranged).indexOf(w)});
+const wFrom = r => (r.m ? DEF[r.k].melee : DEF[r.k].ranged)[r.i];
+function resText(r){
+  if (r.k==='destroyed') return t('res.destroyed', {t:N(r.t)});
+  if (r.k==='slain') return t('res.slain', {n:r.n});
+  if (r.k==='dmg') return t('res.dmg', {n:r.n});
+  return t('res.none');
+}
+function logText(l){
+  if (!l.k) return l.t || '';
+  const p = Object.assign({}, l.p);
+  for (const f of ['u','a','t']) if (p[f]) p[f] = N(p[f]);
+  if (p.side) p.side = sideName(p.side);
+  if (p.w) p.w = wName(wFrom(p.w), true);
+  if (p.res) p.res = LANG==='en' && p.res.k!=='destroyed' ? resText(p.res).replace(/^./, c => c.toLowerCase()) : resText(p.res);
+  return t('log.'+l.k, p);
+}
+
+/* ---------- battlefield (point-symmetric) ---------- */
+const terrain = Array.from({length:ROWS}, () => Array(COLS).fill(0));
+const mir = (x,y) => [COLS-1-x, ROWS-1-y];
+const setT = (list, v) => list.forEach(([x,y]) => { terrain[y][x] = v; const [a,b] = mir(x,y); terrain[b][a] = v; });
+setT([[5,5],[5,6],[3,1],[3,2],[4,2],[11,2],[12,2],[12,3]], 1);
+setT([[6,1],[7,1],[2,8],[2,9],[8,5],[4,4]], 2);
+const OBJ_POINTS = [[3,6],[8,2],[9,6],[10,10],[15,6]];
+
+/* ---------- datasheets ---------- */
+const DEF = {
+  vael:{side:'P', models:1, M:3, T:4, Sv:3, inv:4, W:6, Ld:6, OC:1, tags:['Character','Infantry','Warlord'],
+    ranged:[
+      {id:'bolter', range:12, A:2, skill:2, S:4, AP:1, D:2, rapid:1},
+      {id:'plasma', range:6, A:1, skill:2, S:8, AP:3, D:2},
+    ],
+    melee:[
+      {id:'relic', mode:'strike', A:6, skill:2, S:5, AP:2, D:2},
+      {id:'relic', mode:'sweep', A:10, skill:2, S:4, AP:1, D:1},
+    ]},
+  brethren:{side:'P', models:5, M:3, T:4, Sv:3, W:2, Ld:6, OC:2, tags:['Battleline','Infantry'],
+    ranged:[
+      {id:'boltrifle', range:12, A:2, skill:3, S:4, AP:1, D:1, assault:true, heavy:true},
+      {id:'frag', range:4, A:'D6', skill:3, S:4, AP:0, D:1, blast:true, single:true},
+      {id:'krak', range:4, A:1, skill:3, S:9, AP:2, D:'D3', single:true},
+    ],
+    melee:[{id:'blades', A:3, skill:3, S:4, AP:0, D:1}]},
+  pyre:{side:'P', models:3, M:2, T:5, Sv:3, W:3, Ld:6, OC:1, tags:['Heavy infantry'],
+    ranged:[
+      {id:'flamer', range:6, A:'D6', skill:0, S:4, AP:0, D:1, torrent:true, assault:true},
+      {id:'fragstorm', range:9, A:'D3', skill:3, S:4, AP:0, D:1, blast:true},
+    ],
+    melee:[{id:'fists', A:3, skill:3, S:8, AP:2, D:2}]},
+  dread:{side:'P', models:1, M:3, T:9, Sv:2, W:10, Ld:6, OC:3, tags:['Vehicle','Walker'],
+    ranged:[
+      {id:'laslance', range:18, A:2, skill:3, S:12, AP:3, D:'D6+1', heavy:true},
+      {id:'storm', range:12, A:4, skill:3, S:4, AP:0, D:1, rapid:2},
+    ],
+    melee:[
+      {id:'siege', mode:'strike', A:5, skill:3, S:12, AP:2, D:3},
+      {id:'siege', mode:'sweep', A:10, skill:3, S:6, AP:0, D:1},
+    ]},
+  matriarch:{side:'E', models:1, M:4, T:9, Sv:2, inv:5, W:12, Ld:7, OC:3, tags:['Monster','Synapse','Warlord'],
+    ranged:[
+      {id:'bile', range:9, A:4, skill:3, S:7, AP:1, D:2},
+      {id:'acid', range:6, A:'D6', skill:0, S:5, AP:1, D:1, torrent:true},
+    ],
+    melee:[
+      {id:'scything', mode:'strike', A:6, skill:2, S:9, AP:2, D:3},
+      {id:'scything', mode:'sweep', A:12, skill:2, S:6, AP:1, D:1},
+    ]},
+  clawling:{side:'E', models:10, M:3, T:3, Sv:5, W:1, Ld:8, OC:1, tags:['Battleline','Swarm'],
+    ranged:[{id:'spines', range:9, A:1, skill:4, S:5, AP:0, D:1, assault:true}],
+    melee:[{id:'chitin', A:1, skill:4, S:3, AP:0, D:1}]},
+  ravager:{side:'E', models:3, M:3, T:5, Sv:4, W:3, Ld:7, OC:2, tags:['Infantry'],
+    ranged:[
+      {id:'devourer', range:9, A:3, skill:4, S:4, AP:0, D:1},
+      {id:'venom', range:12, A:1, skill:4, S:9, AP:2, D:'D3', single:true},
+    ],
+    melee:[{id:'rending', A:4, skill:3, S:5, AP:2, D:1}]},
+  leaper:{side:'E', models:6, M:4, T:4, Sv:5, inv:5, W:1, Ld:7, OC:1, tags:['Infantry','Swift'], swift:true,
+    ranged:[],
+    melee:[{id:'rclaws', A:4, skill:2, S:4, AP:2, D:1, lethal:true}]},
+};
+const AI_W = {
+  leaper:{obj:1, close:3, shoot:0, adv:'always'},
+  matriarch:{obj:2, close:2.2, shoot:1, adv:'far'},
+  ravager:{obj:4, close:.6, shoot:4},
+  clawling:{obj:6, close:.3, shoot:2.5},
+};
+const AI_ORDER = ['leaper','matriarch','ravager','clawling'];
+
+/* ---------- portraits (original art, inline SVG) ---------- */
+const TP = {lite:'#f1e6ca', mid:'#b8a47c', dark:'#7d6a49', ink:'#211a11', brass:'#c99a45', eye:'#e3533f', bg1:'#5a4a31', bg2:'#120e09'};
+const HP = {lite:'#de78a2', mid:'#9b3463', dark:'#4f1733', ink:'#1b0710', bone:'#ecdcbc', eye:'#f4d24b', bg1:'#4a1a30', bg2:'#0d0508'};
+function svgWrap(c, body){
+  const ar = c===TP ? `<linearGradient id="ar" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${TP.lite}"/><stop offset="1" stop-color="${TP.mid}"/></linearGradient>`
+                    : `<linearGradient id="ar" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${HP.lite}"/><stop offset="1" stop-color="${HP.dark}"/></linearGradient>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><radialGradient id="bg" cx="50%" cy="36%" r="74%"><stop offset="0" stop-color="${c.bg1}"/><stop offset="1" stop-color="${c.bg2}"/></radialGradient>${ar}</defs><rect width="100" height="100" fill="url(#bg)"/>${body}</svg>`;
+}
+const helm = (fill='url(#ar)', eye=TP.eye) => `
+  <path d="M30 56 C28 34 37 20 50 20 C63 20 72 34 70 56 L67 70 C61 77 39 77 33 70 Z" fill="${fill}" stroke="${TP.ink}" stroke-width="2"/>
+  <path d="M35 43 L46 45.5 L45 51 L35 48.5Z" fill="${eye}"/><path d="M65 43 L54 45.5 L55 51 L65 48.5Z" fill="${eye}"/>
+  <path d="M42 57 L58 57 L55.5 71 L44.5 71Z" fill="${TP.ink}"/>
+  <path d="M45.5 61 H54.5 M45.5 64.5 H54.5 M46 68 H54" stroke="${TP.mid}" stroke-width="1.3"/>
+  <path d="M48 20.5 L52 20.5 L52.6 42 L47.4 42Z" fill="${TP.brass}"/>`;
+const shoulders = (pad='url(#ar)') => `
+  <path d="M6 100 C8 82 24 73 50 73 C76 73 92 82 94 100Z" fill="${TP.dark}" stroke="${TP.ink}" stroke-width="2"/>
+  <ellipse cx="17" cy="87" rx="17" ry="13" fill="${pad}" stroke="${TP.ink}" stroke-width="2"/>
+  <ellipse cx="83" cy="87" rx="17" ry="13" fill="${pad}" stroke="${TP.ink}" stroke-width="2"/>`;
+function laurel(){
+  let o = '';
+  for (let i=0;i<7;i++){
+    const th = (112 + i*17) * Math.PI/180, x = 50 + 28*Math.cos(th), y = 48 + 28*Math.sin(th), rot = th*180/Math.PI + 90;
+    o += `<ellipse cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" rx="5" ry="2.2" transform="rotate(${rot.toFixed(0)} ${x.toFixed(1)} ${y.toFixed(1)})" fill="${TP.brass}"/>`;
+    o += `<ellipse cx="${(100-x).toFixed(1)}" cy="${y.toFixed(1)}" rx="5" ry="2.2" transform="rotate(${(-rot).toFixed(0)} ${(100-x).toFixed(1)} ${y.toFixed(1)})" fill="${TP.brass}"/>`;
+  }
+  return o;
+}
+function crest(){
+  let o = '';
+  for (let i=-3;i<=3;i++){
+    const a = (-90 + i*21) * Math.PI/180, tx = 50 + Math.cos(a)*44, ty = 36 + Math.sin(a)*40;
+    const p = a + Math.PI/2, bx = Math.cos(p)*6, by = Math.sin(p)*6, ox = 50 + Math.cos(a)*10, oy = 36 + Math.sin(a)*10;
+    o += `<path d="M${(ox+bx).toFixed(1)} ${(oy+by).toFixed(1)} L${tx.toFixed(1)} ${ty.toFixed(1)} L${(ox-bx).toFixed(1)} ${(oy-by).toFixed(1)}Z" fill="${i%2?HP.mid:HP.dark}" stroke="${HP.ink}" stroke-width="1"/>`;
+  }
+  return o;
+}
+const PORTRAIT_SVG = {
+  vael: svgWrap(TP, `
+    <path d="M8 100 L18 64 L82 64 L92 100Z" fill="#7c2020"/>
+    ${laurel()}
+    <path d="M50 5 C59 9 61 19 53 26 L47 26 C41 18 42 10 50 5Z" fill="#b3302a" stroke="${TP.ink}" stroke-width="1.5"/>
+    ${shoulders()}${helm()}
+    <path d="M14 86 l3 -5 l3 5 l-3 5z M80 86 l3 -5 l3 5 l-3 5z" fill="${TP.brass}"/>`),
+  brethren: svgWrap(TP, `
+    <g transform="translate(-5 16) scale(.62)">${helm(TP.dark, '#8a2d22')}</g>
+    <g transform="translate(43 16) scale(.62)">${helm(TP.dark, '#8a2d22')}</g>
+    ${shoulders()}${helm()}
+    <path d="M10 91 L17 83 L24 91 M76 91 L83 83 L90 91" stroke="${TP.brass}" stroke-width="3" fill="none"/>`),
+  pyre: svgWrap(TP, `
+    <path d="M14 100 C4 72 22 58 18 30 C34 46 38 60 34 74 C44 60 48 42 44 12 C64 36 72 58 64 78 C72 70 76 58 76 44 C90 62 92 84 84 100Z" fill="#b8481f"/>
+    <path d="M26 100 C20 82 32 72 30 56 C40 68 42 78 40 88 C48 78 52 66 50 50 C62 66 66 82 60 100Z" fill="#e98a2c"/>
+    ${shoulders(TP.dark)}
+    <ellipse cx="17" cy="87" rx="12" ry="8" fill="none" stroke="${TP.brass}" stroke-width="2"/>
+    <ellipse cx="83" cy="87" rx="12" ry="8" fill="none" stroke="${TP.brass}" stroke-width="2"/>
+    ${helm()}
+    <path d="M30 56 C24 50 24 40 28 34" stroke="${TP.ink}" stroke-width="3" fill="none"/>
+    <path d="M70 56 C76 50 76 40 72 34" stroke="${TP.ink}" stroke-width="3" fill="none"/>`),
+  dread: svgWrap(TP, `
+    <rect x="3" y="44" width="20" height="30" rx="3" fill="${TP.dark}" stroke="${TP.ink}" stroke-width="2"/>
+    <rect x="6" y="74" width="5" height="24" fill="${TP.ink}"/><rect x="14" y="74" width="5" height="24" fill="${TP.ink}"/>
+    <rect x="77" y="44" width="20" height="34" rx="4" fill="url(#ar)" stroke="${TP.ink}" stroke-width="2"/>
+    <path d="M80 64 H94 M80 70 H94" stroke="${TP.ink}" stroke-width="2"/>
+    <path d="M22 36 Q50 20 78 36 L80 98 L20 98Z" fill="url(#ar)" stroke="${TP.ink}" stroke-width="2"/>
+    <path d="M36 44 Q50 32 64 44 L64 82 L36 82Z" fill="${TP.ink}"/>
+    <path d="M40 47 Q50 38 60 47 L60 79 L40 79Z" fill="#3a2e1d"/>
+    <path d="M50 44 V75 M42 54 H58" stroke="${TP.brass}" stroke-width="3"/>
+    <path d="M42 24 Q50 16 58 24 L57 33 L43 33Z" fill="${TP.mid}" stroke="${TP.ink}" stroke-width="1.5"/>
+    <rect x="45" y="26" width="10" height="2.6" fill="${TP.eye}"/>
+    <path d="M20 90 H80" stroke="${TP.brass}" stroke-width="2"/>`),
+  matriarch: svgWrap(HP, `
+    ${crest()}
+    <path d="M4 98 C0 62 14 30 32 20 C22 42 18 66 22 98Z" fill="${HP.bone}" stroke="${HP.ink}" stroke-width="1.5"/>
+    <path d="M96 98 C100 62 86 30 68 20 C78 42 82 66 78 98Z" fill="${HP.bone}" stroke="${HP.ink}" stroke-width="1.5"/>
+    <path d="M30 100 C32 80 40 72 50 72 C60 72 68 80 70 100Z" fill="${HP.dark}"/>
+    <path d="M30 42 C30 24 70 24 70 42 C70 60 60 74 50 82 C40 74 30 60 30 42Z" fill="url(#ar)" stroke="${HP.ink}" stroke-width="2"/>
+    <path d="M33 40 C35 27 65 27 67 40 C60 35 40 35 33 40Z" fill="${HP.bone}"/>
+    <path d="M36 47 Q42 42 47 48 Q42 51 36 47Z" fill="${HP.eye}"/><path d="M64 47 Q58 42 53 48 Q58 51 64 47Z" fill="${HP.eye}"/>
+    <path d="M50 52 V68" stroke="${HP.ink}" stroke-width="1.5"/>
+    <path d="M45 70 C38 78 40 90 47 93 C44 86 45 79 49 75Z" fill="${HP.bone}"/>
+    <path d="M55 70 C62 78 60 90 53 93 C56 86 55 79 51 75Z" fill="${HP.bone}"/>`),
+  clawling: svgWrap(HP, `
+    <ellipse cx="18" cy="40" rx="14" ry="10" fill="${HP.dark}"/><circle cx="14" cy="40" r="1.8" fill="${HP.eye}"/><circle cx="22" cy="40" r="1.8" fill="${HP.eye}"/>
+    <ellipse cx="82" cy="34" rx="14" ry="10" fill="${HP.dark}"/><circle cx="78" cy="34" r="1.8" fill="${HP.eye}"/><circle cx="86" cy="34" r="1.8" fill="${HP.eye}"/>
+    <path d="M6 100 C6 84 14 74 26 70 C20 80 18 90 20 100Z" fill="${HP.bone}"/>
+    <path d="M94 100 C94 84 86 74 74 70 C80 80 82 90 80 100Z" fill="${HP.bone}"/>
+    <path d="M26 46 C26 28 74 28 74 46 C74 58 64 64 50 64 C36 64 26 58 26 46Z" fill="url(#ar)" stroke="${HP.ink}" stroke-width="2"/>
+    <path d="M38 34 Q50 26 62 34 Q50 31 38 34Z" fill="${HP.bone}"/>
+    <path d="M32 60 Q50 94 68 60 Q50 70 32 60Z" fill="${HP.ink}"/>
+    ${[37,42,47,52,57].map(x => `<path d="M${x} 63.5 l2.5 6 l2.5 -6z" fill="${HP.bone}"/>`).join('')}
+    <circle cx="40" cy="47" r="3.2" fill="${HP.eye}"/><circle cx="60" cy="47" r="3.2" fill="${HP.eye}"/>`),
+  ravager: svgWrap(HP, `
+    <path d="M24 100 C26 80 40 72 52 72 C66 72 78 82 80 100Z" fill="${HP.dark}"/>
+    <path d="M30 52 C26 32 50 14 84 10 C70 22 72 34 72 52 C72 66 62 76 52 78 C40 76 32 66 30 52Z" fill="url(#ar)" stroke="${HP.ink}" stroke-width="2"/>
+    <path d="M40 30 C52 18 70 12 84 10 C70 18 60 24 54 34Z" fill="${HP.bone}"/>
+    <path d="M38 50 Q44 45 49 51 Q44 54 38 50Z" fill="${HP.eye}"/><path d="M66 50 Q60 45 55 51 Q60 54 66 50Z" fill="${HP.eye}"/>
+    <path d="M44 68 C40 76 42 84 46 86 C45 80 46 74 48 71Z" fill="${HP.bone}"/><path d="M60 68 C64 76 62 84 58 86 C59 80 58 74 56 71Z" fill="${HP.bone}"/>
+    <path d="M0 78 C12 66 34 66 46 74 L44 94 C30 98 12 98 0 94Z" fill="${HP.mid}" stroke="${HP.ink}" stroke-width="2"/>
+    <path d="M14 72 V95 M24 70 V96 M34 71 V95" stroke="${HP.ink}" stroke-width="1.5"/>
+    <circle cx="5" cy="86" r="5" fill="${HP.ink}"/>`),
+  leaper: svgWrap(HP, `
+    <path d="M6 72 C4 46 16 26 30 22 C22 38 18 54 18 74Z" fill="${HP.bone}" stroke="${HP.ink}" stroke-width="1"/>
+    <path d="M94 72 C96 46 84 26 70 22 C78 38 82 54 82 74Z" fill="${HP.bone}" stroke="${HP.ink}" stroke-width="1"/>
+    <path d="M12 100 C8 86 14 72 26 66 C22 78 22 90 26 100Z" fill="${HP.bone}"/>
+    <path d="M88 100 C92 86 86 72 74 66 C78 78 78 90 74 100Z" fill="${HP.bone}"/>
+    <path d="M36 100 C38 84 44 76 50 76 C56 76 62 84 64 100Z" fill="${HP.dark}"/>
+    <path d="M34 58 C30 40 40 22 70 8 C62 26 66 40 66 58 C66 70 58 76 50 76 C42 76 36 70 34 58Z" fill="url(#ar)" stroke="${HP.ink}" stroke-width="2"/>
+    <path d="M46 40 C52 30 58 22 66 14" stroke="${HP.lite}" stroke-width="1.5" fill="none"/>
+    <path d="M38 55 Q43 51 47 56 Q43 58 38 55Z" fill="${HP.eye}"/><path d="M62 55 Q57 51 53 56 Q57 58 62 55Z" fill="${HP.eye}"/>
+    <path d="M44 68 Q50 72 56 68" stroke="${HP.ink}" stroke-width="1.5" fill="none"/>`),
+};
+const PORTRAIT_URL = {}, PORTRAIT_IMG = {};
+for (const k in PORTRAIT_SVG){
+  PORTRAIT_URL[k] = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(PORTRAIT_SVG[k]);
+  const img = new Image(); img.src = PORTRAIT_URL[k]; PORTRAIT_IMG[k] = img;
+}
+
+/* ---------- state ---------- */
+let S = null;
+const UI = {sel:null, target:null, inspect:null, hover:null, cells:null, mode:null, targets:null};
+let busy = false, aiGen = 0;
+const floaters = [];
+
+function mkUnit(key, x, y, id, abbr){
+  const d = DEF[key];
+  return {id, key, side:d.side, abbr:abbr||'', x, y, px:x, py:y, models:d.models, top:d.W,
+    moved:false, advanced:false, advBonus:0, fellBack:false, shot:false, charged:false, chargeTried:false, fought:false, stationary:true, shocked:false};
+}
+function newGame(){
+  aiGen++;
+  S = {
+    round:1, active:'P', phase:'command', vp:{P:0,E:0}, cp:{P:1,E:1}, oath:null, fury:false, lastCharge:null,
+    fightStep:0, over:false, result:null, slain:{P:false,E:false}, tray:null, log:[],
+    objectives: OBJ_POINTS.map(([x,y],i) => ({x, y, n:i, holder:null})),
+    units: [
+      mkUnit('dread', 1,3, 'dread'), mkUnit('brethren', 2,5, 'brethren'), mkUnit('vael', 1,7, 'vael'), mkUnit('pyre', 2,9, 'pyre'),
+      mkUnit('leaper', 16,2, 'leaper'), mkUnit('clawling', 15,4, 'claw1', 'I'),
+      mkUnit('matriarch', 16,6, 'matriarch'), mkUnit('clawling', 15,8, 'claw2', 'II'), mkUnit('ravager', 16,9, 'ravager'),
+    ],
+  };
+  Object.assign(UI, {sel:null, target:null, inspect:'brethren', hover:null, cells:null, mode:null, targets:null});
+  updateControl();
+  log('N', 'intro');
+  startTurn('P', true);
+}
+
+/* ---------- helpers ---------- */
+const d6 = () => 1 + Math.floor(Math.random()*6);
+const sleep = ms => new Promise(r => setTimeout(r, reduceMotion ? Math.min(ms, 200) : ms));
+const DICE_RE = /^(\d*)D(\d)(?:\+(\d+))?$/;
+function roll(v){ if (typeof v === 'number') return v; const m = DICE_RE.exec(v); let tot = +(m[3]||0); for (let i=0;i<(m[1]?+m[1]:1);i++) tot += 1+Math.floor(Math.random()*(+m[2])); return tot; }
+function avg(v){ if (typeof v === 'number') return v; const m = DICE_RE.exec(v); return (m[1]?+m[1]:1)*((+m[2]+1)/2) + +(m[3]||0); }
+const inB = (x,y) => x>=0 && y>=0 && x<COLS && y<ROWS;
+const key = (x,y) => x+','+y;
+const alive = () => S.units.filter(u => u.models > 0);
+const byId = id => S.units.find(u => u.id === id);
+const unitAt = (x,y) => S.units.find(u => u.models>0 && u.x===x && u.y===y);
+const cheb = (a,b) => Math.max(Math.abs(a.x-b.x), Math.abs(a.y-b.y));
+const dist = (a,b) => Math.hypot(a.x-b.x, a.y-b.y);
+const inches = (a,b) => Math.round(dist(a,b)*2);
+const isEngaged = u => alive().some(o => o.side!==u.side && cheb(o,u)===1);
+const adjEnemies = u => alive().filter(o => o.side!==u.side && cheb(o,u)===1);
+const engagedWithSide = (tg, side) => alive().some(o => o.side===side && cheb(o,tg)===1);
+const enemyAdj = (x,y,side) => alive().some(o => o.side!==side && Math.max(Math.abs(o.x-x),Math.abs(o.y-y))===1);
+const inRegion = (x,y,o) => Math.max(Math.abs(x+.5-o.x), Math.abs(y+.5-o.y)) <= 1.5;
+const poolLeft = u => (u.models-1)*DEF[u.key].W + u.top;
+const poolMax = u => DEF[u.key].models*DEF[u.key].W;
+const isWarlord = u => DEF[u.key].tags.includes('Warlord');
+const pct = p => (p >= .995 && p < 1 ? '>99' : p > 0 && p < .005 ? '<1' : Math.round(p*100)) + '%';
+function woundNeed(S_, T){ if (S_ >= 2*T) return 2; if (S_ > T) return 3; if (S_ === T) return 4; if (S_*2 <= T) return 6; return 5; }
+function belowHalf(u){ const d = DEF[u.key]; return d.models>1 ? u.models*2 < d.models : u.top*2 < d.W; }
+function log(side, k, p={}){ S.log.unshift({s:side, k, p, r:S.round}); if (S.log.length>150) S.log.length = 150; }
+function floater(u, k, n, tone){ floaters.push({x:u.x, y:u.y, k, n, tone, t0:performance.now()}); }
+function floaterText(f){
+  if (f.k==='dmg') return '−'+f.n;
+  if (f.k==='plus') return '+'+f.n;
+  return t('fl.'+f.k);
+}
+function abilities(w){
+  return [w.rapid?t('ab.rapid',{n:w.rapid}):'', w.heavy?t('ab.heavy'):'', w.assault?t('ab.assault'):'', w.torrent?t('ab.torrent'):'',
+          w.lethal?t('ab.lethal'):'', w.blast?t('ab.blast'):'', w.single?t('ab.grenade'):''].filter(Boolean).join(' · ');
+}
+
+/* ---------- movement & sight ---------- */
+const DIRS = [[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]];
+function bfs(u, max, mode){
+  const D = Array.from({length:ROWS}, () => Array(COLS).fill(Infinity));
+  D[u.y][u.x] = 0; const q = [[u.x,u.y]];
+  while (q.length){
+    const [x,y] = q.shift(); const d = D[y][x]; if (d >= max) continue;
+    for (const [dx,dy] of DIRS){
+      const nx = x+dx, ny = y+dy;
+      if (!inB(nx,ny) || terrain[ny][nx]===1) continue;
+      if (dx && dy && (terrain[y][nx]===1 || terrain[ny][x]===1)) continue;
+      const occ = unitAt(nx,ny); if (occ && occ.side!==u.side) continue;
+      if (mode==='move' && enemyAdj(nx,ny,u.side)) continue;
+      if (D[ny][nx] > d+1){ D[ny][nx] = d+1; q.push([nx,ny]); }
+    }
+  }
+  return D;
+}
+function moveCells(u, max, mode){
+  const D = bfs(u, max, mode), out = new Map();
+  for (let y=0;y<ROWS;y++) for (let x=0;x<COLS;x++){
+    if (D[y][x] > max || D[y][x] === 0 || unitAt(x,y)) continue;
+    if (mode==='fallback' && enemyAdj(x,y,u.side)) continue;
+    out.set(key(x,y), {x,y,d:D[y][x]});
+  }
+  return out;
+}
+function los(a, b){
+  const x0=a.x+.5, y0=a.y+.5, x1=b.x+.5, y1=b.y+.5;
+  const n = Math.max(2, Math.ceil(Math.hypot(x1-x0,y1-y0)*8)); let cover = false;
+  for (let i=1;i<n;i++){
+    const f=i/n, cx=Math.floor(x0+(x1-x0)*f), cy=Math.floor(y0+(y1-y0)*f);
+    if ((cx===a.x&&cy===a.y) || (cx===b.x&&cy===b.y)) continue;
+    if (terrain[cy][cx]===1) return {see:false, cover:false};
+    if (terrain[cy][cx]===2) cover = true;
+  }
+  if (terrain[b.y][b.x]===2) cover = true;
+  return {see:true, cover};
+}
+
+/* ---------- eligibility ---------- */
+const usableRanged = u => DEF[u.key].ranged.filter(w => !u.advanced || w.assault);
+function canShoot(u){ return u.models>0 && u.side===S.active && !u.shot && !u.fellBack && !isEngaged(u) && usableRanged(u).length>0; }
+function shootTargets(u){
+  const ws = usableRanged(u);
+  return alive().filter(tg => tg.side!==u.side && !engagedWithSide(tg, u.side) && ws.some(w => dist(u,tg) <= w.range) && los(u,tg).see);
+}
+function weaponBlock(u, w, tg){ // reason a weapon can't be used against tg, or ''
+  if (u.advanced && !w.assault) return t('block.adv');
+  if (dist(u,tg) > w.range) return t('block.range', {n:inches(u,tg), r:w.range*2});
+  return '';
+}
+const chargeTargets = u => alive().filter(tg => tg.side!==u.side && dist(u,tg) <= 6);
+function canCharge(u){
+  return u.models>0 && u.side===S.active && !u.charged && !u.chargeTried && !u.fellBack && (!u.advanced || DEF[u.key].swift)
+    && !isEngaged(u) && chargeTargets(u).length>0;
+}
+function fightSteps(){ const a = S.active, o = a==='P'?'E':'P'; return [{side:a, chargers:true},{side:o},{side:a}]; }
+const eligibleFighters = st => alive().filter(u => u.side===st.side && !u.fought && isEngaged(u) && (!st.chargers || u.charged));
+
+/* ---------- objective control ---------- */
+function updateControl(){
+  for (const o of S.objectives){
+    const oc = {P:0, E:0};
+    for (const u of alive()) if (inRegion(u.x,u.y,o)) oc[u.side] += u.shocked ? 0 : u.models*DEF[u.key].OC;
+    if (oc.P > oc.E) o.holder = 'P'; else if (oc.E > oc.P) o.holder = 'E';
+  }
+}
+
+/* ---------- combat ---------- */
+// Everything a single weapon attack depends on, fixed before the dice roll.
+function attackCtx(att, w, tgt, melee, fury){
+  const td = DEF[tgt.key];
+  const shooters = w.single ? 1 : att.models;
+  const rapid = !melee && !!w.rapid && dist(att,tgt) <= w.range/2;
+  const blast = w.blast ? Math.floor(tgt.models/5) : 0;
+  const oath = att.side==='P' && S.oath===tgt.id;
+  const heavy = !melee && !!w.heavy && att.stationary;
+  const hitNeed = heavy ? Math.max(2, w.skill-1) : w.skill;
+  let wn = woundNeed(w.S, td.T); if (fury) wn = Math.max(2, wn-1);
+  const cover = !melee && los(att,tgt).cover;
+  let sv = td.Sv + w.AP, coverUsed = false;
+  if (cover && !(td.Sv<=3 && w.AP===0)){ sv -= 1; coverUsed = true; }
+  sv = Math.max(2, sv);
+  let save = sv, inv = false; if (td.inv && td.inv < save){ save = td.inv; inv = true; }
+  return {w, td, shooters, rapid, blast, oath, heavy, hitNeed, wn, fury, save, inv, coverUsed};
+}
+// Rolls the dice; applies damage to `st` ({models, top}). Records language-neutral dice rows when `rec`.
+function rollAttack(c, st, rec){
+  const {w, td} = c, rows = [];
+  let n = 0; for (let i=0;i<c.shooters;i++) n += roll(w.A);
+  const extra = []; if (c.rapid){ n += w.rapid*c.shooters; extra.push('rapid'); } if (c.blast){ n += c.blast*c.shooters; extra.push('blast'); }
+  let hits = 0, auto = 0;
+  if (w.torrent){ hits = n; if (rec) rows.push({type:'hit', torrent:true, n, extra, dice:[]}); }
+  else {
+    const dice = [];
+    for (let i=0;i<n;i++){
+      let r = d6(), ok = r!==1 && r>=c.hitNeed, rr = false;
+      if (!ok && c.oath){ r = d6(); ok = r!==1 && r>=c.hitNeed; rr = true; }
+      const crit = ok && r===6 && !!w.lethal;
+      if (crit) auto++; else if (ok) hits++;
+      if (rec) dice.push({v:r, c: crit?'crit':ok?'ok':'', rr});
+    }
+    if (rec) rows.push({type:'hit', need:c.hitNeed, heavy:c.heavy, oath:c.oath, n, extra, dice, hits, auto});
+  }
+  const wd = []; let wounds = auto;
+  for (let i=0;i<hits;i++){ const r = d6(), ok = r!==1 && r>=c.wn; if (ok) wounds++; if (rec) wd.push({v:r, c:ok?'ok':''}); }
+  if (rec) rows.push({type:'wound', need:c.wn, S:w.S, T:td.T, fury:c.fury, dice:wd, n:wounds});
+  const sd = []; let fails = 0;
+  for (let i=0;i<wounds;i++){ const r = d6(), saved = c.save<=6 && r!==1 && r>=c.save; if (!saved) fails++; if (rec) sd.push({v:r, c:saved?'saved':'fail'}); }
+  if (rec) rows.push({type:'save', need:c.save, AP:w.AP, inv:c.inv, cover:c.coverUsed, dice:sd, n:fails});
+  let dmg = 0, slain = 0;
+  for (let i=0;i<fails;i++){
+    if (st.models<=0) break;
+    const dd = roll(w.D); dmg += Math.min(dd, st.top); st.top -= dd;
+    if (st.top <= 0){ st.models--; slain++; st.top = td.W; }
+  }
+  if (st.models<=0) st.top = 0;
+  return {rows, slain, dmg};
+}
+// Exact per-step probabilities plus a Monte Carlo of the whole volley.
+function odds(att, w, tgt, melee, fury){
+  const c = attackCtx(att, w, tgt, melee, fury);
+  const p1 = c.hitNeed<=6 ? (7-c.hitNeed)/6 : 0;
+  const pHit = w.torrent ? 1 : c.oath ? p1 + (1-p1)*p1 : p1;
+  const pCrit = w.torrent || !w.lethal ? 0 : (1/6)*(c.oath ? 1 + (1-p1) : 1);
+  const pWound = (7-c.wn)/6;
+  const pFail = c.save>6 ? 1 : (c.save-1)/6;
+  const perAttack = ((pHit-pCrit)*pWound + pCrit) * pFail;
+  const nAvg = c.shooters*avg(w.A) + (c.rapid ? w.rapid*c.shooters : 0) + c.blast*c.shooters;
+  const NN = 1200; let dmg = 0, any = 0, wipe = 0;
+  for (let i=0;i<NN;i++){
+    const st = {models:tgt.models, top:tgt.top}; const r = rollAttack(c, st, false);
+    dmg += r.dmg; if (r.slain>0) any++; if (st.models<=0) wipe++;
+  }
+  return {c, nAvg, pHit, pWound, pFail, perAttack, expDmg:dmg/NN, pAny:any/NN, pWipe:wipe/NN};
+}
+function expDmg(att, w, tgt, melee){
+  const c = attackCtx(att, w, tgt, melee, false);
+  const nAvg = c.shooters*avg(w.A) + (c.rapid ? w.rapid*c.shooters : 0) + c.blast*c.shooters;
+  const ph = w.torrent ? 1 : (7-c.hitNeed)/6;
+  const pf = c.save>6 ? 1 : (c.save-1)/6;
+  return nAvg*ph*((7-c.wn)/6)*pf*Math.min(avg(w.D), c.td.W);
+}
+function targetValue(att, tg, dmg){
+  let v = dmg; if (isWarlord(tg)) v *= 1.3; if (dmg >= poolLeft(tg)) v *= 1.6;
+  if (S.objectives.some(o => o.holder!==att.side && inRegion(tg.x,tg.y,o))) v *= 1.2;
+  return v;
+}
+function useFury(att){
+  if (att.side==='P' && S.fury && S.cp.P>=1 && !att.shocked){ S.cp.P--; S.fury = false; log('P', 'fury', {u:att.id}); return true; }
+  return false;
+}
+function report(att, tgt, w, melee, rows, slain, dmg){
+  const res = tgt.models<=0 ? {k:'destroyed', t:tgt.id} : slain ? {k:'slain', n:slain} : dmg ? {k:'dmg', n:dmg} : {k:'none'};
+  const verb = melee ? 'fights' : 'shoots', wr = wRef(att, w, melee);
+  S.tray = {kind:'attack', side:att.side, a:att.id, t:tgt.id, verb, w:wr, rows, res};
+  log(att.side, verb, {a:att.id, t:tgt.id, w:wr, res});
+  if (tgt.models<=0) floater(tgt, 'destroyed', 0, 'bad');
+  else if (dmg) floater(tgt, 'dmg', dmg, 'bad');
+  else floater(tgt, 'saved', 0, 'dim');
+  if (tgt.models<=0) onDestroyed(tgt, att.side);
+  updateControl();
+}
+function onDestroyed(tg, killer){
+  if (isWarlord(tg) && !S.slain[tg.side]){ S.slain[tg.side] = true; S.vp[killer] += 5; log(killer, 'warlord', {side:killer}); }
+  if (UI.sel === tg.id || UI.target === tg.id) clearSel();
+  for (const side of ['P','E']) if (!alive().some(u => u.side===side)){ finish(side==='P'?'E':'P', 'annihilation'); return; }
+}
+function strike(att, tgt, w, melee, forceFury){
+  const fury = forceFury || useFury(att);
+  const c = attackCtx(att, w, tgt, melee, fury);
+  const st = {models:tgt.models, top:tgt.top};
+  const r = rollAttack(c, st, true);
+  tgt.models = st.models; tgt.top = st.top;
+  if (melee) att.fought = true; else att.shot = true;
+  report(att, tgt, w, melee, r.rows, r.slain, r.dmg);
+}
+function doCharge(u, tg){
+  const a = d6(), b = d6(), sq = Math.floor((a+b)/2);
+  const D = bfs(u, sq, 'charge'); let best = null, bd = Infinity;
+  for (let y=0;y<ROWS;y++) for (let x=0;x<COLS;x++){
+    if (D[y][x] > sq || D[y][x] === 0 || unitAt(x,y)) continue;
+    if (Math.max(Math.abs(x-tg.x), Math.abs(y-tg.y)) !== 1) continue;
+    if (D[y][x] < bd){ bd = D[y][x]; best = {x,y}; }
+  }
+  u.chargeTried = true;
+  S.tray = {kind:'charge', side:u.side, a:u.id, t:tg.id, dice:[a,b], sq, ok:!!best};
+  if (best){
+    u.x = best.x; u.y = best.y; u.charged = true; u.stationary = false; S.lastCharge = null;
+    log(u.side, 'chargeOk', {u:u.id, t:tg.id, n:a+b});
+    floater(u, 'charge', 0, 'good'); updateControl();
+  } else {
+    log(u.side, 'chargeFail', {u:u.id, t:tg.id, n:a+b});
+    floater(u, 'short', 0, 'dim');
+    if (u.side==='P') S.lastCharge = {u:u.id, t:tg.id};
+  }
+  return !!best;
+}
+
+/* ---------- turn flow ---------- */
+function startTurn(side, first){
+  if (S.over) return;
+  S.active = side; S.phase = 'command'; S.fury = false; S.lastCharge = null; S.fightStep = 0;
+  for (const u of S.units) if (u.side===side) Object.assign(u, {moved:false, advanced:false, advBonus:0, fellBack:false, shot:false, charged:false, chargeTried:false, fought:false, stationary:true});
+  if (!first) S.cp[side] += 1;
+  log('N', 'turn', {r:S.round, side, cp:S.cp[side]});
+  shockTests(side);
+  if (side==='P') S.oath = null;
+  updateControl(); clearSel();
+  if (side==='E') runAI(); else { busy = false; render(); }
+}
+function shockTests(side){
+  const syn = side==='E' ? alive().find(u => u.key==='matriarch') : null;
+  for (const u of alive().filter(u => u.side===side)){
+    u.shocked = false;
+    if (!belowHalf(u)) continue;
+    if (syn && u!==syn && dist(u,syn) <= 6){ log(side, 'synapse', {u:u.id}); continue; }
+    const a = d6(), b = d6(), ld = DEF[u.key].Ld;
+    if (a+b < ld){ u.shocked = true; log(side, 'shockFail', {u:u.id, roll:a+b, ld}); floater(u, 'shaken', 0, 'bad'); }
+    else log(side, 'shockPass', {u:u.id, roll:a+b, ld});
+  }
+}
+function scoreTurn(side){
+  if (S.round < 2) return;
+  updateControl();
+  const n = S.objectives.filter(o => o.holder===side).length;
+  const vp = Math.min(15, n*5);
+  S.vp[side] += vp;
+  log(side, 'score', {side, n, vp});
+}
+function endTurn(){
+  if (S.over) return;
+  clearSel();
+  scoreTurn(S.active);
+  if (S.active==='P') startTurn('E');
+  else if (S.round >= 5) finish(S.vp.P>S.vp.E ? 'P' : S.vp.E>S.vp.P ? 'E' : 'draw', 'points');
+  else { S.round++; startTurn('P'); }
+}
+function finish(winner, how){
+  if (S.over) return;
+  S.over = true; S.result = {winner, how}; aiGen++; busy = false; clearSel();
+  if (winner==='draw') log('N', 'draw'); else log('N', how==='annihilation' ? 'winAnn' : 'winPts', {side:winner});
+  render();
+}
+function beginFight(){ S.fightStep = 0; S.units.forEach(u => u.fought = false); advanceFight(); }
+function advanceFight(){
+  if (S.over) return;
+  const steps = fightSteps();
+  while (S.fightStep < steps.length){
+    const st = steps[S.fightStep], el = eligibleFighters(st);
+    if (!el.length){ S.fightStep++; continue; }
+    if (st.side==='E'){
+      busy = true; const g = aiGen; render();
+      setTimeout(() => {
+        if (g!==aiGen || S.over) return;
+        aiFight(el[0]); render();
+        setTimeout(() => { if (g===aiGen) advanceFight(); }, reduceMotion ? 200 : 900);
+      }, reduceMotion ? 100 : 450);
+      return;
+    }
+    busy = false; render(); return;
+  }
+  busy = false; endTurn(); render();
+}
+function playerNext(){
+  if (S.active!=='P' || busy || S.over || S.phase==='fight') return;
+  clearSel(); S.fury = false; S.lastCharge = null; updateControl();
+  S.phase = PHASES[PHASES.indexOf(S.phase)+1];
+  if (S.phase==='fight') beginFight(); else render();
+}
+
+/* ---------- AI ---------- */
+async function runAI(){
+  const g = ++aiGen; busy = true; render();
+  const order = ['command','movement','shooting','charge'];
+  let i = order.indexOf(S.phase);
+  if (i < 0){ advanceFight(); return; }
+  for (; i<order.length; i++){
+    S.phase = order[i]; updateControl(); render();
+    await sleep(550); if (g!==aiGen || S.over) return;
+    await AI_PHASE[order[i]](g); if (g!==aiGen || S.over) return;
+  }
+  S.phase = 'fight'; render(); beginFight();
+}
+const aiUnits = () => alive().filter(u => u.side==='E').sort((a,b) => AI_ORDER.indexOf(a.key)-AI_ORDER.indexOf(b.key));
+function bestOption(u, targets, weapons, melee){
+  let best = null, bv = 0;
+  for (const tg of targets) for (const w of weapons){
+    if (!melee && weaponBlock(u, w, tg)) continue;
+    const v = targetValue(u, tg, expDmg(u, w, tg, melee));
+    if (v > bv){ bv = v; best = {t:tg, w}; }
+  }
+  return best;
+}
+const AI_PHASE = {
+  async command(){},
+  async movement(g){
+    for (const u of aiUnits()){
+      if (u.moved || u.models<=0) continue;
+      aiMove(u); updateControl(); render();
+      await sleep(480); if (g!==aiGen || S.over) return;
+    }
+  },
+  async shooting(g){
+    for (const u of aiUnits()){
+      if (!canShoot(u)) continue;
+      const pick = bestOption(u, shootTargets(u), usableRanged(u), false);
+      if (!pick){ u.shot = true; continue; }
+      strike(u, pick.t, pick.w, false); render();
+      await sleep(1000); if (g!==aiGen || S.over) return;
+    }
+  },
+  async charge(g){
+    for (const u of aiUnits()){
+      if (!canCharge(u)) continue;
+      if (u.key==='clawling' && S.objectives.some(o => inRegion(u.x,u.y,o))) continue;
+      const ts = chargeTargets(u).sort((a,b) => (dist(u,a)-dist(u,b)) || (poolLeft(a)-poolLeft(b)));
+      doCharge(u, ts[0]); render();
+      await sleep(900); if (g!==aiGen || S.over) return;
+    }
+  },
+};
+function aiMove(u){
+  const d = DEF[u.key], w = AI_W[u.key];
+  if (isEngaged(u)){ u.moved = true; return; }
+  const foes = alive().filter(o => o.side==='P'); if (!foes.length){ u.moved = true; return; }
+  const nearest = Math.min(...foes.map(f => dist(u,f)));
+  let max = d.M;
+  if (w.adv==='always' || (w.adv==='far' && nearest > d.M+6)){
+    const r = d6(); u.advanced = true; max += Math.ceil(r/2);
+    log('E', 'advE', {u:u.id, r});
+  }
+  let best = null, bs = scoreCell(u, u.x, u.y, w, foes);
+  for (const c of moveCells(u, max, 'move').values()){
+    const sc = scoreCell(u, c.x, c.y, w, foes); if (sc > bs){ bs = sc; best = c; }
+  }
+  if (best){ u.x = best.x; u.y = best.y; u.stationary = false; }
+  u.moved = true;
+}
+function scoreCell(u, x, y, w, foes){
+  let sc = 0;
+  for (const o of S.objectives){
+    if (!inRegion(x,y,o)) continue;
+    const others = alive().some(v => v.side==='E' && v.id!==u.id && inRegion(v.x,v.y,o));
+    sc += w.obj * (o.holder==='E' ? (others ? .15 : .75) : (others ? .4 : 1));
+  }
+  sc -= w.close * Math.min(...foes.map(f => Math.hypot(f.x-x, f.y-y)));
+  if (w.shoot && !u.advanced){
+    const probe = {x, y};
+    if (foes.some(f => DEF[u.key].ranged.some(wp => Math.hypot(f.x-x,f.y-y) <= wp.range) && los(probe,f).see)) sc += w.shoot;
+  }
+  if (terrain[y][x]===2) sc += .8;
+  return sc + Math.random()*.25;
+}
+function aiFight(u){
+  const pick = bestOption(u, adjEnemies(u), DEF[u.key].melee, true);
+  if (!pick){ u.fought = true; return; }
+  let fury = false;
+  if (u.key==='matriarch' && S.cp.E >= 1){ S.cp.E--; fury = true; log('E', 'adrenal'); }
+  strike(u, pick.t, pick.w, true, fury);
+}
+
+/* ---------- player input ---------- */
+function clearSel(){ UI.sel = null; UI.target = null; UI.cells = null; UI.targets = null; UI.mode = null; }
+function selectUnit(u){
+  UI.sel = u.id; UI.inspect = u.id; UI.target = null; UI.cells = null; UI.targets = null;
+  if (S.phase==='movement'){
+    UI.mode = isEngaged(u) ? 'fallback' : 'move';
+    UI.cells = moveCells(u, DEF[u.key].M + u.advBonus, UI.mode);
+  } else if (S.phase==='shooting') UI.targets = new Set(shootTargets(u).map(tg => tg.id));
+  else if (S.phase==='charge') UI.targets = new Set(chargeTargets(u).map(tg => tg.id));
+  else if (S.phase==='fight') UI.targets = new Set(adjEnemies(u).map(tg => tg.id));
+}
+function onCell(x, y){
+  const u = unitAt(x,y);
+  if (u) UI.inspect = u.id;
+  if (S.over || busy){ render(); return; }
+  const sel = UI.sel ? byId(UI.sel) : null;
+  if (u && sel && u.id===sel.id){ clearSel(); render(); return; }
+  switch (S.phase){
+    case 'command':
+      if (S.active==='P' && u && u.side==='E'){ S.oath = u.id; log('P', 'oath', {u:u.id}); }
+      break;
+    case 'movement':
+      if (S.active!=='P') break;
+      if (sel && UI.cells && UI.cells.has(key(x,y))){
+        sel.x = x; sel.y = y; sel.moved = true; sel.stationary = false;
+        if (UI.mode==='fallback'){ sel.fellBack = true; log('P', 'fallback', {u:sel.id}); }
+        clearSel(); updateControl();
+      } else if (u && u.side==='P' && !u.moved) selectUnit(u);
+      else clearSel();
+      break;
+    case 'shooting':
+      if (S.active!=='P') break;
+      if (sel && u && UI.targets && UI.targets.has(u.id)) UI.target = u.id;
+      else if (u && u.side==='P' && canShoot(u)) selectUnit(u);
+      else clearSel();
+      break;
+    case 'charge':
+      if (S.active!=='P') break;
+      if (sel && u && UI.targets && UI.targets.has(u.id)){ doCharge(sel, u); clearSel(); }
+      else if (u && u.side==='P' && canCharge(u)) selectUnit(u);
+      else clearSel();
+      break;
+    case 'fight': {
+      const st = fightSteps()[S.fightStep];
+      if (!st || st.side!=='P') break;
+      if (sel && u && UI.targets && UI.targets.has(u.id)) UI.target = u.id;
+      else if (u && eligibleFighters(st).includes(u)) selectUnit(u);
+      else clearSel();
+      break;
+    }
+  }
+  render();
+}
+function useWeapon(i){
+  const sel = UI.sel ? byId(UI.sel) : null, tgt = UI.target ? byId(UI.target) : null;
+  if (!sel || !tgt || tgt.models<=0) return;
+  if (S.phase==='shooting' && S.active==='P'){
+    const w = DEF[sel.key].ranged[i]; if (!w || weaponBlock(sel, w, tgt)) return;
+    strike(sel, tgt, w, false); clearSel(); render();
+  } else if (S.phase==='fight'){
+    const w = DEF[sel.key].melee[i]; if (!w) return;
+    strike(sel, tgt, w, true); clearSel(); busy = true; render();
+    setTimeout(() => { if (!S.over) advanceFight(); }, reduceMotion ? 150 : 650);
+  }
+}
+function setLang(l){
+  if (!STR[l]) l = 'en';
+  LANG = l;
+  document.documentElement.lang = l;
+  try { localStorage.setItem('iron-requiem-lang', l); } catch (e) {}
+  applyStatic(); readColors();
+  if (S) render();
+}
+function onAct(el){
+  const act = el.dataset.act;
+  if (act==='lang'){ setLang(el.dataset.lang); return; }
+  if (act==='restart' || act==='again'){ newGame(); return; }
+  if (S.over || busy) return;
+  const sel = UI.sel ? byId(UI.sel) : null;
+  if (act==='next') return playerNext();
+  if (act==='use') return useWeapon(+el.dataset.w);
+  if (act==='untarget'){ UI.target = null; }
+  if (act==='advance' && sel && S.phase==='movement' && !sel.advanced && !isEngaged(sel)){
+    const r = d6(); sel.advanced = true; sel.advBonus = Math.ceil(r/2);
+    log('P', 'advP', {u:sel.id, r, n:sel.advBonus});
+    floater(sel, 'plus', sel.advBonus, 'good');
+    selectUnit(sel);
+  }
+  if (act==='fury' && S.cp.P>=1) S.fury = !S.fury;
+  if (act==='reroll' && S.lastCharge && S.cp.P>=1){
+    const u = byId(S.lastCharge.u), tg = byId(S.lastCharge.t);
+    S.lastCharge = null;
+    if (u && tg && u.models>0 && tg.models>0){ S.cp.P--; log('P', 'reroll'); doCharge(u, tg); S.lastCharge = null; }
+  }
+  render();
+}
+
+/* ---------- rendering: side panels ---------- */
+const $ = id => document.getElementById(id);
+const esc = v => String(v).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const portrait = u => `<img src="${PORTRAIT_URL[u.key]}" alt="">`;
+function applyStatic(){
+  document.querySelectorAll('[data-i18n]').forEach(el => { el.innerHTML = t(el.dataset.i18n); });
+  cv.setAttribute('aria-label', t('board.aria'));
+}
+function render(){ renderHeader(); renderOrders(); renderSheet(); renderTray(); renderLog(); renderRoster(); renderVerdict(); }
+function renderHeader(){
+  const side = sd => `<div class="side ${sd}${S.active===sd&&!S.over?' active':''}"><span class="who">${sideName(sd)}</span><span class="vp">${S.vp[sd]}<small>${t('vp')}</small></span><span class="cp">${t('cp',{n:S.cp[sd]})}</span></div>`;
+  const pips = S.objectives.map(o => `<span class="pip ${o.holder||''}" title="${esc(t('obj.title',{n:NUMERAL[o.n], h:o.holder?sideName(o.holder):t('unclaimed')}))}">${NUMERAL[o.n]}</span>`).join('');
+  $('scores').innerHTML = side('P') + `<div class="objs"><span class="lbl">${t('objectives')}</span><div class="pips">${pips}</div></div>` + side('E');
+  const pi = PHASES.indexOf(S.phase);
+  const langs = LANGS.map(([code, label]) => `<button type="button" data-act="lang" data-lang="${code}" lang="${code}" aria-pressed="${LANG===code}">${label}</button>`).join('');
+  $('track').innerHTML = `<span class="round">${t('round',{r:S.round})}</span>
+    <ol class="phases">${PHASES.map((p,i) => `<li class="${i===pi&&!S.over?'on':i<pi?'done':''}">${t('ph.'+p)}</li>`).join('')}</ol>
+    <span class="turnof ${S.active}">${S.over?t('battleOver'):t('turnOf',{side:sideName(S.active)})}</span>
+    <div class="tools"><div class="langs" role="group" aria-label="${esc(t('language'))}">${langs}</div>
+    <button type="button" data-act="restart">${t('newBattle')}</button></div>`;
+}
+function hintText(){
+  if (S.over) return t('hint.over');
+  const sel = UI.sel ? byId(UI.sel) : null;
+  if (S.phase==='fight'){
+    const st = fightSteps()[S.fightStep];
+    if (st && st.side==='P' && !busy){
+      const lead = t(st.chargers ? 'lead.chargers' : S.active==='E' ? 'lead.back' : 'lead.rest');
+      if (sel && UI.target) return t('hint.fightPick', {lead});
+      return sel ? t('hint.fightSel', {lead, u:unitName(sel)}) : t('hint.fightNone', {lead});
+    }
+    return t(S.active==='E' ? 'hint.enemyFight' : 'hint.strikeBack');
+  }
+  if (S.active==='E') return t('hint.enemyTurn');
+  switch (S.phase){
+    case 'command': {
+      const o = S.oath ? byId(S.oath) : null;
+      return o ? t('hint.oathSet', {u:unitName(o)}) : t('hint.oath');
+    }
+    case 'movement':
+      if (!sel) return t('hint.move0');
+      if (UI.mode==='fallback') return t('hint.fallback', {u:unitName(sel)});
+      return t('hint.move', {u:unitName(sel), adv:sel.advanced});
+    case 'shooting':
+      if (!sel) return t('hint.shoot0');
+      if (UI.target) return t('hint.shootPick');
+      return UI.targets.size ? t('hint.shootTap') : t('hint.shootNone', {u:unitName(sel)});
+    case 'charge':
+      if (S.lastCharge) return t('hint.chargeFail');
+      if (!sel) return t('hint.charge0');
+      return t('hint.charge', {u:unitName(sel)});
+  }
+  return '';
+}
+function weaponPicker(sel, tgt, melee){
+  const list = melee ? DEF[sel.key].melee : DEF[sel.key].ranged;
+  const results = list.map((w, i) => {
+    const why = melee ? '' : weaponBlock(sel, w, tgt);
+    return {w, i, why, o: why ? null : odds(sel, w, tgt, melee, S.fury && S.cp.P>=1)};
+  });
+  const usable = results.filter(r => r.o);
+  const best = usable.length > 1 ? usable.reduce((a,b) => b.o.expDmg > a.o.expDmg ? b : a) : null;
+  const c0 = usable[0] && usable[0].o.c;
+  const mods = c0 ? [c0.oath?t('mod.oath'):'', c0.coverUsed?t('mod.cover'):'', S.fury&&S.cp.P>=1?t('mod.fury'):''].filter(Boolean).join(' · ') : '';
+  const td = DEF[tgt.key];
+  const head = `<div class="vs">${portrait(sel)}<div class="mid"><b>${esc(unitName(tgt))}</b><span>${melee?t('vs.combat'):t('vs.away',{n:inches(sel,tgt)})} · T${td.T} · Sv ${td.Sv}+${td.inv?' / '+td.inv+'++':''} · ${t('vs.models',{n:tgt.models})}</span>${mods?`<span class="mods">${mods}</span>`:''}</div>${portrait(tgt)}</div>`;
+  const sp = v => typeof v === 'string' ? ' '+v : v;
+  const cards = results.map(({w, i, why, o}) => {
+    const ab = abilities(w);
+    const prof = `${melee?t('wc.melee'):w.range*2+'″'} · A${sp(w.A)} · ${w.torrent?t('wc.autohit'):(w.skill+'+')} · S${w.S} · AP${w.AP?'-'+w.AP:'0'} · D${sp(w.D)}${ab?` · <em>${ab}</em>`:''}`;
+    if (!o) return `<div class="wcard off"><div class="wc-top"><span class="wc-name">${esc(wName(w))}</span></div><div class="wc-prof">${prof}</div><p class="wc-why">${esc(why)}</p></div>`;
+    const atk = Number.isInteger(o.nAvg) ? o.nAvg : '~'+o.nAvg.toFixed(1);
+    const isBest = best===results[i];
+    return `<div class="wcard${isBest?' best':''}">
+      <div class="wc-top"><span class="wc-name">${esc(wName(w))}</span>${isBest?`<span class="wc-tag">${t('wc.best')}</span>`:''}<span class="wc-prof">${prof}</span></div>
+      <div class="chain"><span><em>${t('wc.attacks')}</em><b>${atk}</b></span><span><em>${t('wc.hit')} ${w.torrent?'':o.c.hitNeed+'+'}</em><b>${pct(o.pHit)}</b></span><span><em>${t('wc.wound')} ${o.c.wn}+</em><b>${pct(o.pWound)}</b></span><span><em>${o.c.save>6?t('wc.nosave'):t('wc.unsaved')}</em><b>${pct(o.pFail)}</b></span></div>
+      <div class="pbar"><span>${t('wc.each')}</span><span class="track2"><i style="width:${(o.perAttack*100).toFixed(1)}%"></i></span><b>${pct(o.perAttack)}</b></div>
+      <div class="outc"><span><em>${t('wc.avg')}</em><b>${o.expDmg.toFixed(1)}</b></span><span><em>${t('wc.slay')}</em><b>${pct(o.pAny)}</b></span><span class="kill"><em>${t('wc.wipe')}</em><b>${pct(o.pWipe)}</b></span></div>
+      <button type="button" class="${isBest||usable.length===1?'primary':''}" data-act="use" data-w="${i}">${esc(t(melee?'wc.strike':'wc.fire', {w:wName(w, true)}))}</button>
+    </div>`;
+  }).join('');
+  return head + `<div class="wpick">${cards}</div>`;
+}
+function renderOrders(){
+  const sel = UI.sel ? byId(UI.sel) : null, tgt = UI.target ? byId(UI.target) : null; let btns = '', picker = '';
+  const myTurn = S.active==='P' && !busy && !S.over;
+  const fightMine = S.phase==='fight' && !busy && !S.over && fightSteps()[S.fightStep]?.side==='P';
+  if (sel && tgt && tgt.models>0 && ((myTurn && S.phase==='shooting') || fightMine)) picker = weaponPicker(sel, tgt, S.phase==='fight');
+  if (myTurn && S.phase==='movement' && sel && !sel.advanced && !sel.moved && !isEngaged(sel)) btns += `<button type="button" data-act="advance">${t('btn.advance')}</button>`;
+  if (((myTurn && S.phase==='shooting') || fightMine) && sel && S.cp.P>=1) btns += `<button type="button" data-act="fury" class="${S.fury?'armed':''}" aria-pressed="${S.fury}">${t(S.fury?'btn.furyOn':'btn.fury')}</button>`;
+  if (picker) btns += `<button type="button" data-act="untarget">${t('btn.untarget')}</button>`;
+  if (myTurn && S.phase==='charge' && S.lastCharge && S.cp.P>=1) btns += `<button type="button" data-act="reroll">${t('btn.reroll')}</button>`;
+  if (myTurn && S.phase!=='fight') btns += `<button type="button" class="${picker?'':'primary'}" data-act="next">${t('btn.next.'+S.phase)}</button>`;
+  $('orders').innerHTML = `<h2>${S.over?t('panel.orders'):t('panel.phase',{ph:t('ph.'+S.phase)})}</h2><p>${esc(hintText())}</p>${picker}${btns?`<div class="acts">${btns}</div>`:''}`;
+}
+function renderSheet(){
+  const u = byId(UI.hover || UI.sel || UI.inspect);
+  if (!u){ $('sheet').innerHTML = `<h2>${t('panel.sheet')}</h2><p class="empty">${t('sheet.empty')}</p>`; return; }
+  const d = DEF[u.key];
+  const st = (k,v) => `<div><span>${k}</span><b>${v}</b></div>`;
+  const wrow = (w, melee) => {
+    const ab = abilities(w);
+    return `<tr><td>${esc(wName(w))}${ab?`<small>${ab}</small>`:''}</td><td>${melee?t('wc.melee'):w.range*2+'″'}</td><td>${w.A}</td><td>${w.torrent?'N/A':w.skill+'+'}</td><td>${w.S}</td><td>${w.AP?'-'+w.AP:0}</td><td>${w.D}</td></tr>`;
+  };
+  const flags = [];
+  if (u.models<=0) flags.push(['destroyed','warn']);
+  else {
+    if (u.shocked) flags.push(['shaken','warn']);
+    if (S.oath===u.id) flags.push(['oath','good']);
+    if (isEngaged(u)) flags.push(['combat','warn']);
+    if (u.side===S.active){
+      if (u.advanced) flags.push(['advanced','']); else if (u.moved && !u.stationary) flags.push(['moved','']);
+      if (u.fellBack) flags.push(['fellBack','']);
+      if (u.shot) flags.push(['shot','']);
+      if (u.charged) flags.push(['charged','good']);
+      if (u.fought) flags.push(['fought','']);
+    }
+  }
+  $('sheet').innerHTML = `<h2>${t('panel.sheet')}</h2>
+    <div class="ds-top ${u.side}">${portrait(u)}<div><span class="ds-name">${esc(unitName(u))}</span><span class="ds-side ${u.side}">${sideName(u.side)}</span><div class="kw">${d.tags.map(g => t('tag.'+g)).join(' · ')}</div></div></div>
+    <div class="statline">${st('M', d.M*2+'″')}${st('T', d.T)}${st('SV', d.Sv+'+'+(d.inv?`/${d.inv}++`:''))}${st('W', d.W)}${st('LD', d.Ld+'+')}${st('OC', d.OC)}</div>
+    <div class="strength">${t('sheet.strength', {m:`${u.models}/${d.models}`, w:`${u.models>0?poolLeft(u):0}/${poolMax(u)}`})}</div>
+    <div class="wtab"><table><thead><tr><th>${t('th.weapon')}</th><th>${t('th.rng')}</th><th>A</th><th>${t('th.skill')}</th><th>S</th><th>AP</th><th>D</th></tr></thead>
+    <tbody>${d.ranged.length?`<tr class="sec"><td colspan="7">${t('sec.ranged')}</td></tr>`:''}${d.ranged.map(w => wrow(w,false)).join('')}<tr class="sec"><td colspan="7">${t('sec.melee')}</td></tr>${d.melee.map(w => wrow(w,true)).join('')}</tbody></table></div>
+    ${flags.length?`<div class="flags">${flags.map(([k,c]) => `<span class="flag ${c}">${t('flag.'+k)}</span>`).join('')}</div>`:''}`;
+}
+function rowView(r){
+  if (r.type==='hit'){
+    const atk = t('note.attacks', {n:r.n}) + (r.extra.length ? ' · ' + r.extra.map(x => t('note.'+x)).join(', ') : '');
+    if (r.torrent) return {label:t('row.hit'), sub:t('row.torrent'), note:`${atk} · ${t('note.allHit')}`};
+    return {label:`${t('row.hit')} ${r.need}+`, sub:[r.heavy?t('row.heavy'):'', r.oath?t('row.oath'):''].filter(Boolean).join(' · '),
+      note:`${atk} ${t('note.hits', {n:r.hits+r.auto, lethal:r.auto})}`};
+  }
+  if (r.type==='wound') return {label:`${t('row.wound')} ${r.need}+`, sub:`S${r.S} vs T${r.T}${r.fury?' · '+t('row.fury'):''}`, note:t('note.wounds', {n:r.n})};
+  const sub = [r.AP?`AP -${r.AP}`:'AP 0', r.inv?t('row.invuln'):'', r.cover?t('row.cover'):''].filter(Boolean).join(' · ');
+  return {label: r.need>6 ? t('row.nosave') : `${t('row.save')} ${r.need}+`, sub, note:t('note.failed', {n:r.n})};
+}
+function renderTray(){
+  const tr = S.tray;
+  if (!tr || !tr.kind){ $('tray').innerHTML = `<h2>${t('panel.tray')}</h2><p class="empty">${t('tray.empty')}</p>`; return; }
+  const dice = ds => { const shown = ds.slice(0,40).map(x => `<span class="die ${x.c}${x.rr?' rr':''}">${x.v}</span>`).join(''); return shown + (ds.length>40?`<span class="dnote">+${ds.length-40}</span>`:''); };
+  const row = (v, ds) => `<div class="drow"><span class="dl">${esc(v.label)}${v.sub?`<em>${esc(v.sub)}</em>`:''}</span><div><div class="dice">${dice(ds)}</div><div class="dnote">${esc(v.note)}</div></div></div>`;
+  let title, body, result;
+  if (tr.kind==='charge'){
+    const [a,b] = tr.dice;
+    title = t('tray.charges', {a:N(tr.a), t:N(tr.t)});
+    body = `<div class="wgrp"><span class="wn">${t('tray.chargeRoll')}</span>${row({label:'2D6', sub:'', note:t('tray.chargeNote', {sum:a+b, sq:tr.sq})}, [{v:a,c:tr.ok?'ok':''},{v:b,c:tr.ok?'ok':''}])}</div>`;
+    result = t(tr.ok ? 'tray.chargeOk' : 'tray.chargeFail');
+  } else {
+    title = t('tray.'+tr.verb, {a:N(tr.a), t:N(tr.t)});
+    body = `<div class="wgrp"><span class="wn">${esc(wName(wFrom(tr.w)))}</span>${tr.rows.map(r => row(rowView(r), r.dice)).join('')}</div>`;
+    result = resText(tr.res);
+  }
+  $('tray').innerHTML = `<h2>${t('panel.tray')}</h2><p class="tray-title ${tr.side}">${esc(title)}</p>${body}<div class="tray-res">${esc(result)}</div>`;
+}
+function renderLog(){ $('log').innerHTML = S.log.slice(0,80).map(l => `<div class="${l.s}">${esc(logText(l))}</div>`).join(''); }
+function renderRoster(){
+  const col = side => `<div class="rcol ${side}"><h4>${sideName(side)}</h4>${S.units.filter(u => u.side===side).map(u => {
+    const d = DEF[u.key]; const tags = [];
+    if (u.shocked && u.models>0) tags.push(`<span class="sh">${t('roster.shaken')}</span>`);
+    if (S.oath===u.id) tags.push(t('roster.oath'));
+    return `<button type="button" class="ru${u.models<=0?' dead':''}${UI.sel===u.id?' sel':''}" data-unit="${u.id}"${u.models<=0?' disabled':''}>
+      ${portrait(u)}<span class="nm">${esc(unitName(u))}</span>
+      <span class="st">${tags.join(' ')} ${u.models>0?`${u.models}/${d.models} · ${poolLeft(u)}W`:t('roster.destroyed')}</span></button>`;
+  }).join('')}</div>`;
+  $('roster').innerHTML = col('P') + col('E');
+}
+function renderVerdict(){
+  const v = $('verdict');
+  if (!S.over){ v.hidden = true; return; }
+  const r = S.result;
+  const line = r.how==='annihilation' ? t(r.winner==='P' ? 'verdict.annP' : 'verdict.annE') : t('verdict.points', {p:S.vp.P, e:S.vp.E});
+  v.innerHTML = `<div class="vbox"><h3>${t('verdict.'+r.winner)}</h3><p>${esc(line)}</p><button type="button" class="primary" data-act="again">${t('btn.again')}</button></div>`;
+  v.hidden = false;
+}
+document.addEventListener('click', e => {
+  const a = e.target.closest('[data-act]'); if (a){ onAct(a); return; }
+  const r = e.target.closest('[data-unit]'); if (r){ const u = byId(r.dataset.unit); if (u && u.models>0) onCell(u.x, u.y); }
+});
+
+/* ---------- rendering: board ---------- */
+const cv = $('board'), ctx = cv.getContext('2d');
+let cell = 40, dpr = 1, staticLayer = null, C = {};
+function readColors(){
+  const cs = getComputedStyle(document.documentElement);
+  for (const k of ['ground','ground-2','ground-dark','scorch','grid','wall','wall-dark','wall-edge','rubble','rubble-dark','templar','templar-rim','hive','hive-rim','brass','brass-hi','bone','bone-dim','bad','ok','warn','shadow','on-brass','void','f-display'])
+    C[k] = cs.getPropertyValue('--'+k).trim();
+}
+function rng(seed){ return () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let x = Math.imul(seed ^ seed>>>15, 1|seed); x = x + Math.imul(x ^ x>>>7, 61|x) ^ x; return ((x ^ x>>>14)>>>0)/4294967296; }; }
+function alpha(hex, a){ const n = parseInt(hex.slice(1),16); return `rgba(${n>>16&255},${n>>8&255},${n&255},${a})`; }
+function resize(){
+  if (!C.ground) readColors();
+  const w = cv.clientWidth || 800; dpr = window.devicePixelRatio || 1; cell = w/COLS;
+  cv.width = Math.round(w*dpr); cv.height = Math.round(w*ROWS/COLS*dpr);
+  buildStatic();
+}
+function buildStatic(){
+  const off = document.createElement('canvas'); off.width = cv.width; off.height = cv.height;
+  const g = off.getContext('2d'); g.scale(dpr,dpr);
+  const W = cell*COLS, H = cell*ROWS, R = rng(41);
+  g.fillStyle = C.ground; g.fillRect(0,0,W,H);
+  for (let i=0;i<10;i++){
+    const x = R()*W, y = R()*H, r = cell*(.8+R()*1.6);
+    const gr = g.createRadialGradient(x,y,0,x,y,r); gr.addColorStop(0,C.scorch); gr.addColorStop(1,'rgba(0,0,0,0)');
+    g.fillStyle = gr; g.fillRect(x-r,y-r,r*2,r*2);
+  }
+  for (let i=0;i<1800;i++){
+    g.globalAlpha = .25+R()*.45; g.fillStyle = R()<.5 ? C['ground-2'] : C['ground-dark'];
+    const sz = .6+R()*cell*.07; g.fillRect(R()*W, R()*H, sz, sz);
+  }
+  g.globalAlpha = 1;
+  g.fillStyle = alpha(C.templar,.05); g.fillRect(0,0,cell*3,H);
+  g.fillStyle = alpha(C.hive,.07); g.fillRect(cell*15,0,cell*3,H);
+  g.strokeStyle = alpha(C.templar,.35); g.setLineDash([cell*.12, cell*.12]); g.lineWidth = 1;
+  g.beginPath(); g.moveTo(cell*3,0); g.lineTo(cell*3,H); g.stroke();
+  g.strokeStyle = alpha(C.hive,.5); g.beginPath(); g.moveTo(cell*15,0); g.lineTo(cell*15,H); g.stroke(); g.setLineDash([]);
+  g.strokeStyle = C.grid; g.lineWidth = 1; g.beginPath();
+  for (let x=1;x<COLS;x++){ g.moveTo(x*cell,0); g.lineTo(x*cell,H); }
+  for (let y=1;y<ROWS;y++){ g.moveTo(0,y*cell); g.lineTo(W,y*cell); }
+  g.stroke();
+  for (let y=0;y<ROWS;y++) for (let x=0;x<COLS;x++) if (terrain[y][x]===2){
+    const r = rng(x*31+y*7+3);
+    g.fillStyle = alpha(C['rubble-dark'],.55); g.fillRect(x*cell+2, y*cell+2, cell-4, cell-4);
+    for (let i=0;i<7;i++){
+      const cx = x*cell + cell*(.15+r()*.7), cy = y*cell + cell*(.15+r()*.7), sz = cell*(.07+r()*.13);
+      g.fillStyle = r()<.5 ? C.rubble : C['rubble-dark'];
+      g.beginPath(); const k = 5;
+      for (let j=0;j<k;j++){ const a = j/k*Math.PI*2 + r(), rr = sz*(.6+r()*.5); g[j?'lineTo':'moveTo'](cx+Math.cos(a)*rr, cy+Math.sin(a)*rr); }
+      g.closePath(); g.fill();
+    }
+  }
+  for (let y=0;y<ROWS;y++) for (let x=0;x<COLS;x++) if (terrain[y][x]===1){
+    const X = x*cell, Y = y*cell;
+    g.fillStyle = C.wall; g.fillRect(X,Y,cell,cell);
+    g.fillStyle = C['wall-dark'];
+    const aw = cell*.34, ah = cell*.46, ax = X+(cell-aw)/2, ay = Y+cell*.28;
+    g.beginPath(); g.moveTo(ax, ay+ah); g.lineTo(ax, ay+aw/2); g.arc(ax+aw/2, ay+aw/2, aw/2, Math.PI, 0); g.lineTo(ax+aw, ay+ah); g.closePath(); g.fill();
+    g.fillStyle = alpha(C.bone,.07); g.fillRect(X, Y, cell, cell*.08);
+    g.strokeStyle = C['wall-edge']; g.lineWidth = Math.max(1.5, cell*.05); g.beginPath();
+    const wall = (a,b) => inB(a,b) && terrain[b][a]===1;
+    if (!wall(x,y-1)){ g.moveTo(X,Y); g.lineTo(X+cell,Y); }
+    if (!wall(x,y+1)){ g.moveTo(X,Y+cell); g.lineTo(X+cell,Y+cell); }
+    if (!wall(x-1,y)){ g.moveTo(X,Y); g.lineTo(X,Y+cell); }
+    if (!wall(x+1,y)){ g.moveTo(X+cell,Y); g.lineTo(X+cell,Y+cell); }
+    g.stroke();
+  }
+  staticLayer = off;
+}
+function sideColor(sd){ return sd==='P' ? C.templar : sd==='E' ? C.hive : C['bone-dim']; }
+function dimmed(u){
+  if (S.over || u.side!==S.active || S.active!=='P' || busy) return false;
+  if (S.phase==='movement') return u.moved;
+  if (S.phase==='shooting') return !canShoot(u);
+  if (S.phase==='charge') return !canCharge(u);
+  if (S.phase==='fight'){ const st = fightSteps()[S.fightStep]; return !(st && st.side==='P' && eligibleFighters(st).includes(u)); }
+  return false;
+}
+function frame(now){
+  const W = cell*COLS, H = cell*ROWS;
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  ctx.clearRect(0,0,W,H);
+  if (staticLayer) ctx.drawImage(staticLayer, 0, 0, W, H);
+  if (S){
+    for (const o of S.objectives){
+      const col = sideColor(o.holder);
+      ctx.fillStyle = alpha(o.holder ? col : C.brass, .06); ctx.fillRect((o.x-2)*cell, (o.y-2)*cell, cell*4, cell*4);
+      ctx.strokeStyle = alpha(o.holder ? col : C.brass, .55); ctx.setLineDash([cell*.14, cell*.1]); ctx.lineWidth = 1.2;
+      ctx.strokeRect((o.x-2)*cell+.5, (o.y-2)*cell+.5, cell*4-1, cell*4-1); ctx.setLineDash([]);
+      const r = cell*.27;
+      ctx.fillStyle = C.void; ctx.beginPath(); ctx.arc(o.x*cell, o.y*cell, r, 0, Math.PI*2); ctx.fill();
+      ctx.strokeStyle = o.holder ? col : C.brass; ctx.lineWidth = Math.max(2, cell*.06); ctx.stroke();
+      ctx.fillStyle = o.holder ? col : C['brass-hi']; ctx.font = `${Math.round(cell*.3)}px 'Pirata One', Georgia, serif`;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(NUMERAL[o.n], o.x*cell, o.y*cell+1);
+    }
+    if (UI.cells){
+      for (const c of UI.cells.values()){
+        ctx.fillStyle = alpha(C.brass, UI.mode==='fallback' ? .16 : .24); ctx.fillRect(c.x*cell+1, c.y*cell+1, cell-2, cell-2);
+        ctx.strokeStyle = alpha(C.brass, .5); ctx.lineWidth = 1; ctx.strokeRect(c.x*cell+1.5, c.y*cell+1.5, cell-3, cell-3);
+      }
+    }
+    const sel = UI.sel ? byId(UI.sel) : null, tgt = UI.target ? byId(UI.target) : null;
+    if (sel && tgt && tgt.models>0){
+      ctx.strokeStyle = alpha(C.bad, .7); ctx.lineWidth = 2; ctx.setLineDash([cell*.12, cell*.08]);
+      ctx.beginPath(); ctx.moveTo((sel.px+.5)*cell, (sel.py+.5)*cell); ctx.lineTo((tgt.px+.5)*cell, (tgt.py+.5)*cell); ctx.stroke(); ctx.setLineDash([]);
+    }
+    const pulse = reduceMotion ? 1 : .6 + .4*Math.sin(now/220);
+    const list = alive().sort((a,b) => (a.id===UI.sel) - (b.id===UI.sel));
+    for (const u of list){
+      const k = reduceMotion ? 1 : .22;
+      u.px += (u.x-u.px)*k; u.py += (u.y-u.py)*k;
+      if (Math.abs(u.x-u.px) < .01) u.px = u.x; if (Math.abs(u.y-u.py) < .01) u.py = u.y;
+      const cx = (u.px+.5)*cell, cy = (u.py+.5)*cell, r = cell*.42;
+      ctx.globalAlpha = dimmed(u) ? .45 : 1;
+      ctx.fillStyle = C.shadow; ctx.beginPath(); ctx.ellipse(cx+cell*.04, cy+cell*.07, r, r*.92, 0, 0, Math.PI*2); ctx.fill();
+      const img = PORTRAIT_IMG[u.key];
+      ctx.save(); ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI*2); ctx.clip();
+      if (img && img.complete && img.naturalWidth) ctx.drawImage(img, cx-r, cy-r, r*2, r*2);
+      else { ctx.fillStyle = u.side==='P' ? C.templar : C.hive; ctx.fillRect(cx-r, cy-r, r*2, r*2); }
+      ctx.restore();
+      ctx.strokeStyle = u.side==='P' ? C.templar : C.hive; ctx.lineWidth = Math.max(1.5, cell*.045);
+      ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI*2); ctx.stroke();
+      const frac = poolLeft(u)/poolMax(u);
+      ctx.strokeStyle = alpha(C.void, .8); ctx.lineWidth = Math.max(2, cell*.07);
+      ctx.beginPath(); ctx.arc(cx, cy, r+cell*.045, 0, Math.PI*2); ctx.stroke();
+      ctx.strokeStyle = frac > .5 ? C.ok : frac > .25 ? C.warn : C.bad;
+      ctx.beginPath(); ctx.arc(cx, cy, r+cell*.045, -Math.PI/2, -Math.PI/2 + Math.PI*2*frac); ctx.stroke();
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      if (DEF[u.key].models > 1){
+        const bx = cx + r*.74, by = cy + r*.74, br = cell*.17;
+        ctx.fillStyle = C.void; ctx.beginPath(); ctx.arc(bx, by, br, 0, Math.PI*2); ctx.fill();
+        ctx.strokeStyle = u.side==='P' ? C.templar : C.hive; ctx.lineWidth = 1; ctx.stroke();
+        ctx.fillStyle = C.bone; ctx.font = `${Math.round(cell*.2)}px 'Share Tech Mono', Menlo, monospace`; ctx.fillText(u.models, bx, by+1);
+      }
+      if (u.abbr){
+        const bx = cx - r*.74, by = cy + r*.74, br = cell*.15;
+        ctx.fillStyle = C.void; ctx.beginPath(); ctx.arc(bx, by, br, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = C['brass-hi']; ctx.font = `${Math.round(cell*.2)}px 'Pirata One', Georgia, serif`; ctx.fillText(u.abbr, bx, by+1);
+      }
+      if (S.oath===u.id){
+        const ox = cx - r*.75, oy = cy - r*.75, sz = cell*.13;
+        ctx.fillStyle = C['brass-hi']; ctx.beginPath(); ctx.moveTo(ox, oy-sz); ctx.lineTo(ox+sz, oy); ctx.lineTo(ox, oy+sz); ctx.lineTo(ox-sz, oy); ctx.closePath(); ctx.fill();
+        ctx.strokeStyle = C.void; ctx.lineWidth = 1; ctx.stroke();
+      }
+      if (u.shocked){
+        const sx = cx + r*.75, sy = cy - r*.75;
+        ctx.fillStyle = C.warn; ctx.beginPath(); ctx.arc(sx, sy, cell*.12, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = C.void; ctx.font = `bold ${Math.round(cell*.18)}px 'Barlow Condensed', sans-serif`; ctx.fillText('!', sx, sy+1);
+      }
+      ctx.globalAlpha = 1;
+      if (UI.sel===u.id){
+        ctx.strokeStyle = C['brass-hi']; ctx.lineWidth = Math.max(2, cell*.06);
+        ctx.beginPath(); ctx.arc(cx, cy, r+cell*.11, 0, Math.PI*2); ctx.stroke();
+      } else if (UI.target===u.id){
+        ctx.strokeStyle = C.bad; ctx.lineWidth = Math.max(3, cell*.08);
+        ctx.beginPath(); ctx.arc(cx, cy, r+cell*.11, 0, Math.PI*2); ctx.stroke();
+      } else if (UI.targets && UI.targets.has(u.id)){
+        ctx.strokeStyle = alpha(C.bad, pulse); ctx.lineWidth = Math.max(2, cell*.06);
+        ctx.beginPath(); ctx.arc(cx, cy, r+cell*.11, 0, Math.PI*2); ctx.stroke();
+      } else if (UI.hover===u.id){
+        ctx.strokeStyle = alpha(C.bone, .5); ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.arc(cx, cy, r+cell*.1, 0, Math.PI*2); ctx.stroke();
+      }
+    }
+    for (let i=floaters.length-1;i>=0;i--){
+      const f = floaters[i], p = (now - f.t0)/1500;
+      if (p >= 1){ floaters.splice(i,1); continue; }
+      ctx.globalAlpha = 1 - p*p;
+      ctx.font = `${LANG==='en'?'':'900 '}${Math.round(cell*(LANG==='en'?.4:.34))}px ${C['f-display']}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      const fx = (f.x+.5)*cell, fy = (f.y+.5)*cell - cell*(.5 + p*.7), txt = floaterText(f);
+      ctx.lineWidth = 3; ctx.strokeStyle = C.void; ctx.strokeText(txt, fx, fy);
+      ctx.fillStyle = f.tone==='bad' ? C.bad : f.tone==='good' ? C['brass-hi'] : C.bone; ctx.fillText(txt, fx, fy);
+      ctx.globalAlpha = 1;
+    }
+  }
+  requestAnimationFrame(frame);
+}
+function cellFromEvent(e){
+  const r = cv.getBoundingClientRect();
+  return [Math.floor((e.clientX-r.left)/r.width*COLS), Math.floor((e.clientY-r.top)/r.height*ROWS)];
+}
+cv.addEventListener('click', e => { const [x,y] = cellFromEvent(e); if (inB(x,y)) onCell(x,y); });
+cv.addEventListener('mousemove', e => {
+  const [x,y] = cellFromEvent(e); const u = inB(x,y) ? unitAt(x,y) : null; const id = u ? u.id : null;
+  if (id !== UI.hover){ UI.hover = id; renderSheet(); }
+});
+cv.addEventListener('mouseleave', () => { if (UI.hover){ UI.hover = null; renderSheet(); } });
+
+/* ---------- boot ---------- */
+function initialLang(){
+  try { const v = localStorage.getItem('iron-requiem-lang'); if (v && STR[v]) return v; } catch (e) {}
+  const nav = (navigator.languages && navigator.languages[0]) || navigator.language || 'en';
+  if (/^zh-(TW|HK|MO|Hant)/i.test(nav)) return 'zh-Hant';
+  if (/^zh/i.test(nav)) return 'zh-Hans';
+  return 'en';
+}
+function start(data){
+  LANG = initialLang(); document.documentElement.lang = LANG;
+  readColors(); applyStatic(); resize();
+  if (data && data.S && data.S.units){
+    S = data.S; clearSel();
+    S.units.forEach(u => { u.abbr = u.id==='claw1' ? 'I' : u.id==='claw2' ? 'II' : ''; });
+    if (S.tray && !S.tray.kind) S.tray = null;
+    if (!S.over){
+      if (S.phase==='fight') advanceFight();
+      else if (S.active==='E') runAI();
+      else { busy = false; render(); }
+    } else render();
+  } else newGame();
+  render();
+  requestAnimationFrame(frame);
+}
+try { window.claude?.hot?.snapshot?.(() => ({S: JSON.parse(JSON.stringify(S))})); } catch (e) {}
+new ResizeObserver(() => resize()).observe(cv);
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { if (S) buildStatic(); });
+window.claude?.hot?.ready ? window.claude.hot.ready(start) : start(window.claude?.hot?.data ?? {});
+})();
+</script>
+
+</body>
+</html>
